@@ -14,6 +14,7 @@ export default function RoomHeader({
   connectionState,
   chatOpen,
   setChatOpen,
+  participantsCount = 1
 }) {
   const addToast = useToast();
   const stateInfo = STATE_LABELS[connectionState] || STATE_LABELS.new;
@@ -36,9 +37,9 @@ export default function RoomHeader({
   };
 
   return (
-    <header className="absolute top-4 sm:top-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 sm:gap-3">
-      {/* Main Info Pill */}
-      <div className="flex items-center gap-3 sm:gap-4 h-11 sm:h-12 pl-1.5 pr-4 sm:pr-5 rounded-full backdrop-blur-2xl bg-slate-900/60 border border-white/10 shadow-2xl">
+    <>
+      {/* Bottom Left: Info & Sharing */}
+      <div className="absolute bottom-6 sm:bottom-8 left-4 sm:left-6 z-40 flex items-center gap-3 sm:gap-4 h-11 sm:h-12 pl-1.5 pr-4 sm:pr-5 rounded-full backdrop-blur-2xl bg-slate-900/60 border border-white/10 shadow-2xl">
         <div className="flex items-center gap-2.5">
           <img src="/logo.jpg" alt="MeetFlow" className="w-8 h-8 rounded-full object-cover" />
           <span className="text-sm font-semibold text-white tracking-wide">
@@ -67,24 +68,24 @@ export default function RoomHeader({
         </button>
       </div>
 
-      {/* Tools Pill */}
-      <div className="flex items-center h-11 sm:h-12 px-2 sm:px-2.5 rounded-full backdrop-blur-2xl bg-slate-900/60 border border-white/10 shadow-2xl">
-        <div className="flex items-center gap-1.5 px-3 text-slate-300">
+      {/* Bottom Right: Participants & Chat Toggle */}
+      <div className="absolute bottom-6 sm:bottom-8 right-4 sm:right-6 z-40 flex items-center gap-1 p-1 rounded-full backdrop-blur-2xl bg-slate-900/60 border border-white/10 shadow-2xl hidden sm:flex">
+        <div className="flex items-center gap-2 px-3 text-sm font-medium text-slate-300" title="Participants">
           <FiUsers size={14} />
-          <span className="text-xs font-medium">{isConnected ? 2 : 1}</span>
+          <span>{participantsCount}</span>
         </div>
-        <div className="w-px h-4 bg-white/10 mx-1" />
         <button
           onClick={() => setChatOpen(!chatOpen)}
-          className={`h-8 w-8 sm:h-9 sm:w-9 flex items-center justify-center rounded-full transition-all ${
+          className={`h-9 w-9 flex items-center justify-center rounded-full transition-all ${
             chatOpen
-              ? "bg-cyan-500/20 text-cyan-400"
+              ? "bg-cyan-500 text-white shadow-[0_0_15px_rgba(6,182,212,0.4)]"
               : "hover:bg-white/10 text-slate-300 hover:text-white"
           }`}
+          title="Toggle Chat"
         >
           <FiMessageCircle size={15} />
         </button>
       </div>
-    </header>
+    </>
   );
 }

@@ -11,7 +11,7 @@ const ICE_SERVERS = {
   ],
 };
 
-export default function useWebRTC(roomId) {
+export default function useWebRTC(roomId, userName) {
   const peersRef = useRef(new Map());
   const localStreamRef = useRef(null);
   const myUid = useRef(Math.random().toString(36).substring(2, 12));
@@ -19,6 +19,7 @@ export default function useWebRTC(roomId) {
   
   const [localStream, setLocalStream] = useState(null);
   const [remoteStreams, setRemoteStreams] = useState(new Map());
+  const [participantNames, setParticipantNames] = useState(new Map());
   const [connectionState, setConnectionState] = useState("new");
   const [error, setError] = useState(null);
 
@@ -28,6 +29,11 @@ export default function useWebRTC(roomId) {
        peersRef.current.delete(uid);
      }
      setRemoteStreams(prev => {
+       const next = new Map(prev);
+       next.delete(uid);
+       return next;
+     });
+     setParticipantNames(prev => {
        const next = new Map(prev);
        next.delete(uid);
        return next;
@@ -45,6 +51,7 @@ export default function useWebRTC(roomId) {
     localStreamRef.current = null;
     setLocalStream(null);
     setRemoteStreams(new Map());
+    setParticipantNames(new Map());
 
     try {
       const myPartRef = doc(db, "calls", roomId, "participants", myUid.current);
@@ -102,7 +109,7 @@ export default function useWebRTC(roomId) {
       setLocalStream(stream);
 
       const myPartRef = doc(db, "calls", roomId, "participants", myUid.current);
-      await setDoc(myPartRef, { joinedAt: Date.now() });
+      await setDoc(myPartRef, { joinedAt: Date.now(), userName: userName || "Guest" });
 
       const offersRef = collection(myPartRef, "offers");
       const unsubOffers = onSnapshot(offersRef, (snap) => {
@@ -149,15 +156,27 @@ export default function useWebRTC(roomId) {
         });
       });
 
-      // Listen for NEW participants who join after me, so I can offer to them
+      // Listen for all participants to get their names and offer to new ones
       const participantsRef = collection(db, "calls", roomId, "participants");
       const unsubParticipants = onSnapshot(participantsRef, (snap) => {
          snap.docChanges().forEach(async (change) => {
+            const targetUid = change.doc.id;
+            const data = change.doc.data();
+            
+            if (change.type === "added" || change.type === "modified") {
+               if (targetUid !== myUid.current) {
+                 setParticipantNames(prev => {
+                   const next = new Map(prev);
+                   next.set(targetUid, data.userName || "Participant");
+                   return next;
+                 });
+               }
+            }
+            
             if (change.type === "added") {
-               const targetUid = change.doc.id;
                if (targetUid !== myUid.current && !peersRef.current.has(targetUid)) {
                   // They joined, I will offer to them if they are newer
-                  if (change.doc.data().joinedAt > Date.now() - 5000) {
+                  if (data.joinedAt > Date.now() - 5000) {
                       const pc = createPeerConnection(targetUid);
                       const offer = await pc.createOffer();
                       await pc.setLocalDescription(offer);
@@ -169,6 +188,10 @@ export default function useWebRTC(roomId) {
                       });
                   }
                }
+            }
+            
+            if (change.type === "removed") {
+               removePeer(targetUid);
             }
          });
       });
@@ -182,11 +205,12 @@ export default function useWebRTC(roomId) {
        setError("Failed to start video call. Please allow camera and mic permissions.");
        setConnectionState("failed");
     }
-  }, [roomId]);
+  }, [roomId, userName]);
 
   return {
     localStream,
     remoteStreams,
+    participantNames,
     connectionState,
     error,
     peersRef,

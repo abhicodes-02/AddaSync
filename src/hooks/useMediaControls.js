@@ -21,6 +21,16 @@ export default function useMediaControls(localStreamRef, pcRef) {
 
   const shareScreen = useCallback(async () => {
     try {
+      // If already sharing, trigger the stop logic manually
+      if (isScreenSharing) {
+        const currentVideoTrack = localStreamRef.current?.getVideoTracks()[0];
+        if (currentVideoTrack) {
+          currentVideoTrack.stop();
+          currentVideoTrack.dispatchEvent(new Event("ended"));
+        }
+        return;
+      }
+
       const screenStream = await navigator.mediaDevices.getDisplayMedia({
         video: true,
       });
@@ -32,12 +42,29 @@ export default function useMediaControls(localStreamRef, pcRef) {
 
       if (!sender) return;
 
+      // Replace the track for the REMOTE user
       await sender.replaceTrack(screenTrack);
       setIsScreenSharing(true);
 
+      // Find original camera track
+      const originalCameraTrack = localStreamRef.current?.getVideoTracks()[0];
+
+      // Replace the track LOCALLY so YOU can see your screen share
+      if (originalCameraTrack) {
+        localStreamRef.current.removeTrack(originalCameraTrack);
+        localStreamRef.current.addTrack(screenTrack);
+      }
+
+      // Handle when user clicks "Stop Sharing" in browser popup
       screenTrack.onended = () => {
-        const cameraTrack = localStreamRef.current?.getVideoTracks()[0];
-        if (cameraTrack) sender.replaceTrack(cameraTrack);
+        if (originalCameraTrack) {
+          // Send camera back to remote user
+          sender.replaceTrack(originalCameraTrack);
+          
+          // Show camera back on local video
+          localStreamRef.current.removeTrack(screenTrack);
+          localStreamRef.current.addTrack(originalCameraTrack);
+        }
         setIsScreenSharing(false);
       };
     } catch (err) {
@@ -47,7 +74,7 @@ export default function useMediaControls(localStreamRef, pcRef) {
       }
       console.error("Screen share error:", err);
     }
-  }, [localStreamRef, pcRef]);
+  }, [localStreamRef, pcRef, isScreenSharing]);
 
   return {
     isMuted,

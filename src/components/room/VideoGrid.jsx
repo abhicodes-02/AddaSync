@@ -9,6 +9,8 @@ export default function VideoGrid({
 }) {
   const localVideoRef = useRef(null);
 
+  // We use standard useEffects for both streams to avoid the "black video" glitch
+  // caused by conditional rendering and unmounting of video tags.
   useEffect(() => {
     if (localVideoRef.current && localStream) {
       localVideoRef.current.srcObject = localStream;
@@ -24,97 +26,76 @@ export default function VideoGrid({
   const isConnected = connectionState === "connected";
 
   return (
-    <div className="flex-1 flex flex-col lg:flex-row items-stretch gap-2 p-2 sm:p-3 overflow-hidden relative">
-
-      {/* Remote video tile — always takes most space */}
-      <div className="flex-1 relative rounded-lg sm:rounded-xl overflow-hidden bg-slate-800/60 min-h-0">
+    <div className="flex-1 flex items-center justify-center p-2 sm:p-3 md:p-4 overflow-hidden relative">
+      
+      {/* Main Remote Video Tile - Always takes full space */}
+      <div className="w-full h-full relative rounded-xl sm:rounded-2xl overflow-hidden bg-slate-800/60 shadow-lg">
         <video
           ref={remoteVideoRef}
           autoPlay
           playsInline
-          className="absolute inset-0 w-full h-full object-cover bg-slate-900"
+          // Changed to object-contain so screen shares are NEVER cropped!
+          className="absolute inset-0 w-full h-full object-contain bg-slate-900"
         />
 
         {/* Placeholder when no remote */}
         {!isConnected && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-800/90">
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-800/90 z-10">
             <div className="
-              h-16 w-16 sm:h-20 sm:w-20 rounded-full
+              h-20 w-20 sm:h-24 sm:w-24 rounded-full
               bg-gradient-to-br from-cyan-600 to-blue-700
               flex items-center justify-center
-              text-2xl sm:text-3xl font-semibold mb-3
+              text-3xl sm:text-4xl font-semibold mb-4
+              shadow-lg
             ">
               ?
             </div>
-            <p className="text-slate-400 text-xs sm:text-sm text-center px-4">
+            <p className="text-slate-300 text-sm sm:text-base font-medium px-4 text-center">
               {connectionState === "connecting"
                 ? "Waiting for someone to join..."
                 : connectionState === "failed"
                   ? "Connection failed"
                   : "No one else is here yet"}
             </p>
-            <p className="text-slate-500 text-[10px] sm:text-xs mt-1.5">
+            <p className="text-slate-400 text-xs mt-2">
               Share the Room ID to invite others
             </p>
           </div>
         )}
 
         {/* Remote user label */}
-        <div className="
-          absolute bottom-2 left-2 sm:bottom-3 sm:left-3
-          bg-black/60 backdrop-blur-sm
-          px-2 py-1 sm:px-3 sm:py-1.5 rounded-md sm:rounded-lg
-          text-[10px] sm:text-xs text-white
-        ">
-          Participant
-        </div>
+        {isConnected && (
+          <div className="
+            absolute bottom-3 left-3 z-20
+            bg-black/60 backdrop-blur-md
+            px-3 py-1.5 rounded-lg
+            text-xs text-white font-medium shadow-md
+          ">
+            Participant
+          </div>
+        )}
       </div>
 
-      {/* Local video — side-by-side on desktop when connected */}
-      {isConnected && (
-        <div className="
-          hidden lg:block relative rounded-xl overflow-hidden
-          bg-slate-800/60 w-[35%] max-w-[450px] min-h-0
-        ">
-          <video
-            ref={localVideoRef}
-            autoPlay
-            muted
-            playsInline
-            className="absolute inset-0 w-full h-full object-cover"
-          />
-          <div className="
-            absolute bottom-3 left-3
-            bg-black/60 backdrop-blur-sm
-            px-3 py-1.5 rounded-lg text-xs text-white
-          ">
-            You
-          </div>
-        </div>
-      )}
-
-      {/* Self-view floating mini tile — mobile & tablet, or when alone on desktop */}
-      <div className={`
-        absolute z-30 rounded-lg sm:rounded-xl overflow-hidden
-        border border-white/10 shadow-xl
-        ${isConnected
-          ? "lg:hidden bottom-2 right-2 w-28 h-20 sm:w-36 sm:h-24"
-          : "bottom-2 right-2 w-28 h-20 sm:w-36 sm:h-24 md:w-44 md:h-28"
-        }
-      `}>
+      {/* Self-view floating mini tile - ALWAYS floating like Google Meet */}
+      <div className="
+        absolute z-30 rounded-xl overflow-hidden
+        border-2 border-slate-700/50 shadow-2xl
+        bottom-6 right-6 w-32 h-24 sm:w-48 sm:h-32
+        transition-transform hover:scale-105
+        bg-slate-900
+      ">
         <video
-          ref={(el) => {
-            if (el && localStream) el.srcObject = localStream;
-          }}
+          ref={localVideoRef}
           autoPlay
           muted
           playsInline
-          className="w-full h-full object-cover bg-slate-900"
+          // Object cover is fine for your own camera
+          className="w-full h-full object-cover"
         />
         <div className="
-          absolute bottom-1 left-1 sm:bottom-1.5 sm:left-1.5
+          absolute bottom-1.5 left-1.5
           bg-black/60 backdrop-blur-sm
-          px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] text-white
+          px-2 py-1 rounded-md text-[10px] text-white font-medium
         ">
           You
         </div>

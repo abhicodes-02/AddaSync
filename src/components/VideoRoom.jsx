@@ -51,7 +51,6 @@ function VideoRoom() {
 
   const { togglePiP } = usePictureInPicture(remoteVideoRef);
 
-  // Start WebRTC on mount
   useEffect(() => {
     if (!started.current) {
       started.current = true;
@@ -59,14 +58,9 @@ function VideoRoom() {
     }
   }, [start]);
 
-  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Don't trigger shortcuts when typing in input
-      if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") {
-        return;
-      }
-
+      if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
       switch (e.key.toLowerCase()) {
         case "m":
           toggleMute();
@@ -81,7 +75,6 @@ function VideoRoom() {
           break;
       }
     };
-
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [toggleMute, toggleCamera]);
@@ -91,21 +84,20 @@ function VideoRoom() {
     navigate("/");
   }, [cleanup, navigate]);
 
-  // Show error state
   if (error) {
     return (
-      <div className="h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-black flex items-center justify-center p-4">
-        <div className="text-center max-w-md">
-          <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-red-600/20 flex items-center justify-center text-4xl">
+      <div className="h-screen bg-[#0a0a0a] flex items-center justify-center p-4">
+        <div className="text-center max-w-md backdrop-blur-xl bg-white/[0.02] border border-white/10 p-10 rounded-[2rem] shadow-2xl">
+          <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-red-500/10 flex items-center justify-center text-3xl shadow-[0_0_30px_rgba(239,68,68,0.2)]">
             ⚠️
           </div>
-          <h2 className="text-2xl font-bold text-white mb-3">
-            Unable to Start Call
+          <h2 className="text-2xl font-bold text-white mb-3 tracking-tight">
+            Unable to Connect
           </h2>
-          <p className="text-slate-400 mb-6">{error}</p>
+          <p className="text-slate-400 mb-8">{error}</p>
           <button
             onClick={() => navigate("/")}
-            className="px-6 py-3 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white font-medium transition"
+            className="w-full px-6 py-3.5 rounded-xl bg-white text-black font-semibold hover:bg-slate-100 transition-all active:scale-95"
           >
             Back to Home
           </button>
@@ -114,29 +106,29 @@ function VideoRoom() {
     );
   }
 
-  // Show loading state
   if (!isReady) {
-    return <LoadingScreen message="Requesting camera & microphone access..." />;
+    return <LoadingScreen message="Starting camera & microphone..." />;
   }
 
   return (
-    <div className="h-screen bg-slate-950 text-white flex flex-col overflow-hidden">
+    <div className="h-screen w-screen bg-[#0a0a0a] text-white flex overflow-hidden relative font-sans">
+      
+      {/* Floating Presentation Banner */}
+      {isScreenSharing && (
+        <div className="absolute top-24 left-1/2 -translate-x-1/2 z-50 backdrop-blur-xl bg-cyan-500/20 border border-cyan-500/30 text-cyan-50 px-5 py-2 rounded-full text-sm font-semibold shadow-[0_0_20px_rgba(6,182,212,0.3)] animate-[slideIn_0.2s_ease-out]">
+          You are presenting to everyone
+        </div>
+      )}
+
+      {/* Main Spatial Layout */}
       <RoomHeader
         roomId={roomId}
         connectionState={connectionState}
         chatOpen={chatOpen}
         setChatOpen={setChatOpen}
-        onLeave={leaveRoom}
       />
 
-      <div className="flex-1 flex overflow-hidden min-h-0 relative">
-        {/* Presentation Banner */}
-        {isScreenSharing && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 bg-cyan-600 text-white px-4 py-1.5 rounded-full text-sm font-medium shadow-lg animate-[slideIn_0.2s_ease-out]">
-            You are presenting to everyone
-          </div>
-        )}
-
+      <div className="flex-1 w-full h-full relative">
         <VideoGrid
           localStream={localStream}
           remoteStream={remoteStream}
@@ -144,17 +136,18 @@ function VideoRoom() {
           roomId={roomId}
           remoteVideoRef={remoteVideoRef}
         />
-
-        <ChatPanel
-          chatOpen={chatOpen}
-          setChatOpen={setChatOpen}
-          messages={messages}
-          msg={msg}
-          setMsg={setMsg}
-          sendMessage={sendMessage}
-          messagesEndRef={messagesEndRef}
-        />
       </div>
+
+      <ChatPanel
+        chatOpen={chatOpen}
+        setChatOpen={setChatOpen}
+        messages={messages}
+        msg={msg}
+        setMsg={setMsg}
+        sendMessage={sendMessage}
+        messagesEndRef={messagesEndRef}
+        userName={userName}
+      />
 
       <ControlDock
         isMuted={isMuted}

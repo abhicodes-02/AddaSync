@@ -1,4 +1,4 @@
-import { FiX, FiSend } from "react-icons/fi";
+import { FiX, FiSend, FiMessageCircle } from "react-icons/fi";
 
 export default function ChatPanel({
   chatOpen,
@@ -8,67 +8,69 @@ export default function ChatPanel({
   setMsg,
   sendMessage,
   messagesEndRef,
+  userName,
 }) {
   if (!chatOpen) return null;
 
   const formatTime = (timestamp) => {
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    return new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
   return (
-    <div
-      className="
-        fixed inset-0 z-50
-        sm:absolute sm:inset-auto sm:right-0 sm:top-0
-        sm:h-full sm:w-[360px]
-        lg:relative lg:w-[340px] xl:w-[380px]
-        bg-slate-900 sm:bg-slate-900/95 sm:backdrop-blur-xl
-        sm:border-l sm:border-white/5
-        flex flex-col
-        animate-[slideIn_0.15s_ease-out]
+    <div className="
+        absolute lg:relative right-0 top-0
+        h-full w-full sm:w-[380px]
+        backdrop-blur-3xl bg-slate-900/80
+        border-l border-white/5 shadow-2xl
+        flex flex-col z-50
+        animate-[slideIn_0.2s_ease-out]
       "
     >
       {/* Header */}
-      <div className="h-12 shrink-0 px-4 flex items-center justify-between border-b border-white/5">
-        <h3 className="font-medium text-sm text-white">In-call messages</h3>
+      <div className="h-16 shrink-0 px-5 flex items-center justify-between border-b border-white/5 bg-white/[0.01]">
+        <h3 className="font-semibold text-white tracking-wide">Meeting Chat</h3>
         <button
           onClick={() => setChatOpen(false)}
-          className="h-8 w-8 flex items-center justify-center rounded-full hover:bg-white/5 active:bg-white/10 transition text-slate-400"
+          className="h-8 w-8 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors text-slate-400 hover:text-white"
         >
           <FiX size={16} />
         </button>
       </div>
 
       {/* Messages */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-1 scrollbar-thin">
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 py-5 space-y-4 scrollbar-thin">
         {messages.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-slate-500 gap-2">
-            <p className="text-sm">No messages yet</p>
-            <p className="text-xs text-slate-600 text-center px-4">
-              Messages are only visible to people in the call
+          <div className="h-full flex flex-col items-center justify-center text-slate-500 gap-3">
+            <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center">
+              <FiMessageCircle size={20} className="text-slate-400" />
+            </div>
+            <p className="text-sm font-medium">No messages yet</p>
+            <p className="text-xs text-slate-600 text-center px-8">
+              Messages here are visible to everyone in the call.
             </p>
           </div>
         ) : (
           messages.map((m, i) => {
+            const isMe = m.sender === userName;
             const prevSender = i > 0 ? messages[i - 1].sender : null;
-            const isNewSender = m.sender !== prevSender;
+            const showHeader = m.sender !== prevSender;
 
             return (
-              <div key={i} className={`${isNewSender ? "pt-3" : "pt-0.5"}`}>
-                {isNewSender && (
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs font-medium text-cyan-400">
-                      {m.sender || "Anonymous"}
-                    </span>
-                    <span className="text-[10px] text-slate-600">
-                      {m.time ? formatTime(m.time) : ""}
-                    </span>
-                  </div>
+              <div key={i} className={`flex flex-col ${isMe ? "items-end" : "items-start"} ${showHeader ? "mt-4" : "mt-1.5"}`}>
+                {showHeader && (
+                  <span className="text-[11px] font-medium text-slate-400 mb-1.5 px-1">
+                    {isMe ? "You" : m.sender || "Anonymous"} • {m.time ? formatTime(m.time) : ""}
+                  </span>
                 )}
-                <p className="text-sm text-slate-300 leading-relaxed break-words">
+                <div className={`
+                  max-w-[85%] px-4 py-2.5 text-sm leading-relaxed
+                  ${isMe 
+                    ? "bg-cyan-600 text-white rounded-2xl rounded-tr-sm shadow-md shadow-cyan-900/20" 
+                    : "bg-slate-800/80 text-slate-100 rounded-2xl rounded-tl-sm border border-white/5 shadow-sm"
+                  }
+                `}>
                   {m.text}
-                </p>
+                </div>
               </div>
             );
           })
@@ -77,32 +79,30 @@ export default function ChatPanel({
       </div>
 
       {/* Input */}
-      <div className="shrink-0 p-3 pb-safe border-t border-white/5">
-        <div className="flex gap-2 items-end">
+      <div className="shrink-0 p-4 bg-white/[0.01] border-t border-white/5 pb-safe">
+        <div className="flex gap-2 items-end bg-black/40 rounded-[1.25rem] border border-white/10 p-1.5 focus-within:border-cyan-500/50 focus-within:ring-1 focus-within:ring-cyan-500/50 transition-all">
           <input
             value={msg}
             onChange={(e) => setMsg(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-            placeholder="Send a message"
+            placeholder="Send a message..."
             className="
-              flex-1 bg-slate-800/50 border border-white/5
-              rounded-full px-4 py-2.5 outline-none
-              focus:border-white/15 text-sm text-white
-              placeholder:text-slate-500 transition
+              flex-1 bg-transparent px-3 py-2 outline-none
+              text-sm text-white placeholder:text-slate-500
             "
           />
           <button
             onClick={sendMessage}
             disabled={!msg.trim()}
             className="
-              h-10 w-10 shrink-0 rounded-full
+              h-9 w-9 shrink-0 rounded-xl
               flex items-center justify-center
-              bg-cyan-600 hover:bg-cyan-500 active:bg-cyan-400
-              disabled:opacity-30 disabled:hover:bg-cyan-600
-              transition text-white
+              bg-cyan-500 hover:bg-cyan-400 active:scale-95
+              disabled:opacity-30 disabled:hover:bg-cyan-500
+              transition-all text-white shadow-md shadow-cyan-500/20
             "
           >
-            <FiSend size={15} />
+            <FiSend size={15} className="ml-0.5" />
           </button>
         </div>
       </div>

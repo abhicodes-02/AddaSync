@@ -29,7 +29,10 @@ export default function RoomHeader({
   const handleEmailShare = () => {
     const subject = encodeURIComponent(`Join my MeetFlow Video Call`);
     const body = encodeURIComponent(`I'm inviting you to a video meeting.\n\nClick this link to join directly:\n${fullUrl}\n\nOr enter the room code manually: ${roomId}`);
-    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+    
+    // Explicitly open Gmail in a new tab
+    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&su=${subject}&body=${body}`;
+    window.open(gmailUrl, '_blank');
   };
 
   return (

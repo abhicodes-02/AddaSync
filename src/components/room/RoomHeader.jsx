@@ -1,6 +1,5 @@
-import { FiCopy, FiMessageSquare, FiUsers } from "react-icons/fi";
+import { FiCopy, FiMessageCircle, FiUsers, FiMail } from "react-icons/fi";
 import { useToast } from "../ui/Toast";
-import { FiMessageCircle } from "react-icons/fi";
 
 const STATE_LABELS = {
   new: { text: "Initializing", color: "bg-yellow-500" },
@@ -19,6 +18,19 @@ export default function RoomHeader({
   const addToast = useToast();
   const stateInfo = STATE_LABELS[connectionState] || STATE_LABELS.new;
   const isConnected = connectionState === "connected";
+  
+  const fullUrl = `${window.location.origin}/room/${roomId}`;
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(fullUrl);
+    addToast("Meeting link copied!", "success");
+  };
+
+  const handleEmailShare = () => {
+    const subject = encodeURIComponent(`Join my MeetFlow Video Call`);
+    const body = encodeURIComponent(`I'm inviting you to a video meeting.\n\nClick this link to join directly:\n${fullUrl}\n\nOr enter the room code manually: ${roomId}`);
+    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+  };
 
   return (
     <header className="absolute top-4 sm:top-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 sm:gap-3">
@@ -34,14 +46,21 @@ export default function RoomHeader({
         <div className="w-px h-4 bg-white/10" />
 
         <button
-          onClick={() => {
-            navigator.clipboard.writeText(roomId);
-            addToast("Room ID copied!", "success");
-          }}
+          onClick={handleCopyLink}
+          title="Copy direct invite link"
           className="flex items-center gap-1.5 text-xs font-medium text-slate-300 hover:text-white transition-colors"
         >
           <FiCopy size={13} />
-          <span className="hidden sm:inline">Copy</span>
+          <span className="hidden sm:inline">Copy Link</span>
+        </button>
+
+        <button
+          onClick={handleEmailShare}
+          title="Send email invite"
+          className="flex items-center gap-1.5 text-xs font-medium text-slate-300 hover:text-white transition-colors ml-1 sm:ml-2"
+        >
+          <FiMail size={14} />
+          <span className="hidden sm:inline">Email</span>
         </button>
       </div>
 

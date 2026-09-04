@@ -1,70 +1,113 @@
-# Getting Started with Create React App
+# MeetFlow 🎥
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A modern peer-to-peer video conferencing app built with **React 19**, **WebRTC**, and **Firebase Firestore** for signaling.
 
-## Available Scripts
+## Features
 
-In the project directory, you can run:
+- 📹 **HD Video & Audio** — Real-time peer-to-peer connection via WebRTC
+- 🎤 **Mic & Camera Controls** — Toggle with buttons or keyboard shortcuts (`M` / `V`)
+- 🖥️ **Screen Sharing** — Share your screen with one click
+- 💬 **Real-time Chat** — In-call messaging with sender names and timestamps
+- 🖼️ **Picture-in-Picture** — Auto-PiP when switching tabs
+- 📋 **Room ID Sharing** — Copy room ID to clipboard with toast confirmation
+- 📱 **Responsive Design** — Full mobile support with floating local video overlay
+- ⚡ **Fast Builds** — Powered by Vite with instant HMR
 
-### `npm start`
+## Tech Stack
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+| Layer | Technology |
+| --- | --- |
+| Build Tool | [Vite](https://vitejs.dev/) |
+| UI Framework | [React 19](https://react.dev/) |
+| Routing | [React Router v7](https://reactrouter.com/) |
+| Styling | [Tailwind CSS 3](https://tailwindcss.com/) |
+| Real-time Video | [WebRTC](https://webrtc.org/) |
+| Signaling | [Firebase Firestore](https://firebase.google.com/docs/firestore) |
+| Icons | [React Icons (Feather)](https://react-icons.github.io/react-icons/) |
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## Getting Started
 
-### `npm test`
+### Prerequisites
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+- Node.js 18+
+- A Firebase project with Firestore enabled
 
-### `npm run build`
+### Setup
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+1. **Clone the repository**
+   ```bash
+   git clone <repo-url>
+   cd meetflow
+   ```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+3. **Configure environment variables**
+   ```bash
+   cp .env.example .env
+   ```
+   Fill in your Firebase credentials in `.env`:
+   ```
+   VITE_FIREBASE_API_KEY=your-api-key
+   VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+   VITE_FIREBASE_PROJECT_ID=your-project-id
+   VITE_FIREBASE_STORAGE_BUCKET=your-project.firebasestorage.app
+   VITE_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
+   VITE_FIREBASE_APP_ID=your-app-id
+   ```
 
-### `npm run eject`
+4. **Start the dev server**
+   ```bash
+   npm run dev
+   ```
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+5. **Open** [http://localhost:3000](http://localhost:3000)
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+### Build for Production
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+```bash
+npm run build
+npm run preview
+```
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+## Project Structure
 
-## Learn More
+```
+src/
+├── components/
+│   ├── room/
+│   │   ├── RoomHeader.jsx      # Header with room info & connection state
+│   │   ├── VideoGrid.jsx       # Main + local video layout
+│   │   ├── ChatPanel.jsx       # Slide-in chat with messages
+│   │   └── ControlDock.jsx     # Floating control bar with tooltips
+│   ├── ui/
+│   │   ├── Toast.jsx           # Toast notification system
+│   │   └── LoadingScreen.jsx   # Loading state with animation
+│   ├── JoinRoom.jsx            # Landing page (create/join room)
+│   └── VideoRoom.jsx           # Main room (composes hooks + components)
+├── hooks/
+│   ├── useWebRTC.js            # WebRTC peer connection & signaling
+│   ├── useMediaControls.js     # Mic, camera, screen share
+│   ├── useChat.js              # Real-time chat via Firestore
+│   └── usePictureInPicture.js  # PiP mode management
+├── firebase/
+│   └── firebase.js             # Firebase init (reads from .env)
+├── App.jsx                     # Router with lazy loading
+├── main.jsx                    # Entry point
+└── index.css                   # Tailwind + custom styles
+```
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+## Keyboard Shortcuts
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+| Key | Action |
+| --- | --- |
+| `M` | Toggle microphone |
+| `V` | Toggle camera |
+| `Esc` | Leave the call |
 
-### Code Splitting
+## License
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+MIT

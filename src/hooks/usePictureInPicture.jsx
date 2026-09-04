@@ -1,7 +1,95 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 
-export default function usePictureInPicture(localVideoRef, remoteStreams) {
+function PipGrid({ remoteStreams, localStream }) {
+  const localRef = useRef(null);
+
+  useEffect(() => {
+    if (localRef.current && localStream) {
+      localRef.current.srcObject = localStream;
+    }
+  }, [localStream]);
+
+  const streamsEntries = Array.from(remoteStreams.entries());
+  const count = streamsEntries.length;
+
+  let gridClass = "count-1";
+  if (count === 2) gridClass = "count-2";
+  if (count === 3 || count === 4) gridClass = "count-3";
+  if (count >= 5) gridClass = "count-5";
+
+  return (
+    <>
+      <style>
+        {`
+          body { margin: 0; padding: 0; background: #0a0a0a; overflow: hidden; font-family: sans-serif; }
+          .pip-grid {
+             display: grid;
+             gap: 6px;
+             width: 100vw;
+             height: 100vh;
+             padding: 6px;
+             box-sizing: border-box;
+          }
+          .pip-grid.count-1 { grid-template-columns: 1fr; }
+          .pip-grid.count-2 { grid-template-columns: 1fr 1fr; }
+          .pip-grid.count-3 { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+          .pip-grid.count-5 { grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr 1fr; }
+          .pip-video-container {
+             position: relative;
+             width: 100%;
+             height: 100%;
+             border-radius: 12px;
+             overflow: hidden;
+             background: #111;
+             border: 1px solid rgba(255,255,255,0.1);
+          }
+          .pip-video { width: 100%; height: 100%; object-fit: cover; }
+          
+          .local-pip {
+             position: absolute;
+             bottom: 16px;
+             right: 16px;
+             width: 28%;
+             max-width: 200px;
+             min-width: 100px;
+             aspect-ratio: 16/9;
+             border-radius: 10px;
+             overflow: hidden;
+             border: 1px solid rgba(255,255,255,0.2);
+             box-shadow: 0 10px 25px rgba(0,0,0,0.8);
+             z-index: 100;
+             background: #000;
+          }
+          .local-pip video { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+        `}
+      </style>
+      <div className={`pip-grid ${gridClass}`}>
+        {streamsEntries.map(([uid, stream]) => (
+          <div key={uid} className="pip-video-container">
+            <video
+              autoPlay
+              playsInline
+              className="pip-video"
+              ref={(el) => {
+                if (el && el.srcObject !== stream) el.srcObject = stream;
+              }}
+            />
+          </div>
+        ))}
+      </div>
+      <div className="local-pip">
+        <video ref={localRef} autoPlay muted playsInline />
+      </div>
+    </>
+  );
+}
+
+export default function usePictureInPicture(localVideoRef, remoteStreams, localStream) {
   const [isPiP, setIsPiP] = useState(false);
+  const [pipWindow, setPipWindow] = useState(null);
+  
+  // Fallback Canvas Refs
   const pipVideoRef = useRef(null);
   const canvasRef = useRef(null);
   const animationRef = useRef(null);
@@ -21,7 +109,28 @@ export default function usePictureInPicture(localVideoRef, remoteStreams) {
     setIsPiP(false);
   }, []);
 
-  const startCompositePiP = useCallback(async () => {
+  const startDocPiP = useCallback(async () => {
+    try {
+      const win = await window.documentPictureInPicture.requestWindow({
+        width: 800,
+        height: 450,
+      });
+
+      win.addEventListener("pagehide", () => {
+        setPipWindow(null);
+        setIsPiP(false);
+      });
+
+      setPipWindow(win);
+      setIsPiP(true);
+      return true;
+    } catch (err) {
+      console.warn("Document PiP failed or unsupported:", err);
+      return false;
+    }
+  }, []);
+
+  const startCanvasPiP = useCallback(async () => {
     try {
       if (document.pictureInPictureElement) return;
 
@@ -36,22 +145,30 @@ export default function usePictureInPicture(localVideoRef, remoteStreams) {
       pipVideo.playsInline = true;
       pipVideoRef.current = pipVideo;
 
+      let pWindow = null;
+
       const drawFrame = () => {
         if (!ctx || !canvasRef.current) return;
+
+        // Dynamic Resize if PIP window exists (Best effort for standard PiP)
+        if (pWindow && pWindow.width && pWindow.height) {
+            if (canvas.width !== pWindow.width || canvas.height !== pWindow.height) {
+                canvas.width = pWindow.width * 1.5;
+                canvas.height = pWindow.height * 1.5;
+            }
+        }
 
         // Base Background
         ctx.fillStyle = "#0a0a0a";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Get all active remote video elements from the DOM
         const remoteVideos = Array.from(document.querySelectorAll('.remote-video-element'))
                                   .filter(v => v.readyState >= 2);
         
         const count = remoteVideos.length;
 
-        // Draw Remote Videos in a Grid
+        // Grid Drawing Logic
         if (count === 1) {
-          // Single Remote Video (Full Screen)
           const remote = remoteVideos[0];
           const rRatio = remote.videoWidth / remote.videoHeight;
           const cRatio = canvas.width / canvas.height;
@@ -70,7 +187,6 @@ export default function usePictureInPicture(localVideoRef, remoteStreams) {
           }
           ctx.drawImage(remote, drawX, drawY, drawW, drawH);
         } else if (count > 1) {
-          // Multiple Remote Videos Grid
           let cols = 2;
           let rows = Math.ceil(count / 2);
           
@@ -83,7 +199,6 @@ export default function usePictureInPicture(localVideoRef, remoteStreams) {
              const x = col * cellW;
              const y = row * cellH;
 
-             // object-cover simulation for grid cells
              ctx.save();
              ctx.beginPath();
              ctx.rect(x, y, cellW, cellH);
@@ -110,21 +225,20 @@ export default function usePictureInPicture(localVideoRef, remoteStreams) {
           });
         }
 
-        // Draw Local Video (Floating bottom right)
+        // Draw Local
         const local = localVideoRef.current;
         if (local && local.readyState >= 2) {
-          const padding = 40;
-          const pipW = 320;
-          const pipH = 180;
+          const padding = 20;
+          const pipW = Math.max(150, canvas.width * 0.25);
+          const pipH = pipW * (9/16);
           const pipX = canvas.width - pipW - padding;
           const pipY = canvas.height - pipH - padding;
 
           ctx.save();
-          ctx.shadowColor = "rgba(0,0,0,0.6)";
-          ctx.shadowBlur = 24;
-          ctx.shadowOffsetY = 12;
-          ctx.lineWidth = 4;
-          ctx.strokeStyle = "rgba(255,255,255,0.15)";
+          ctx.shadowColor = "rgba(0,0,0,0.8)";
+          ctx.shadowBlur = 15;
+          ctx.lineWidth = 2;
+          ctx.strokeStyle = "rgba(255,255,255,0.2)";
           ctx.strokeRect(pipX, pipY, pipW, pipH);
           
           ctx.beginPath();
@@ -147,10 +261,8 @@ export default function usePictureInPicture(localVideoRef, remoteStreams) {
             sY = (local.videoHeight - sH) / 2;
           }
           
-          // Apply horizontal mirror specifically for PiP local view
           ctx.translate(pipX + pipW, pipY);
           ctx.scale(-1, 1);
-          
           ctx.drawImage(local, sX, sY, sW, sH, 0, 0, pipW, pipH);
           ctx.restore();
         }
@@ -164,43 +276,62 @@ export default function usePictureInPicture(localVideoRef, remoteStreams) {
       pipVideo.srcObject = stream;
       
       await pipVideo.play();
-      await pipVideo.requestPictureInPicture();
+      pWindow = await pipVideo.requestPictureInPicture();
       setIsPiP(true);
 
       pipVideo.addEventListener('leavepictureinpicture', stopPiP);
 
     } catch (err) {
-      console.error("Failed to start Composite PiP:", err);
+      console.error("Failed to start Canvas PiP:", err);
       stopPiP();
     }
-  }, [localVideoRef]); // remoteStreams acts as a trigger but we query DOM.
+  }, [localVideoRef]);
 
   const togglePiP = useCallback(async () => {
+    if (pipWindow) {
+       pipWindow.close();
+       return;
+    }
     if (document.pictureInPictureElement) {
       await document.exitPictureInPicture();
       stopPiP();
-    } else {
-      await startCompositePiP();
+      return;
     }
-  }, [startCompositePiP, stopPiP]);
 
+    if ('documentPictureInPicture' in window) {
+      const success = await startDocPiP();
+      if (success) return;
+    }
+    
+    await startCanvasPiP();
+  }, [startCanvasPiP, startDocPiP, stopPiP, pipWindow]);
+
+  // Handle automatic PIP on tab switch (Video PiP is usually more reliable for automatic trigger, but Doc PiP is user triggered)
   useEffect(() => {
     const handleVisibility = async () => {
       if (
         document.hidden &&
-        document.pictureInPictureEnabled &&
+        !pipWindow &&
         !document.pictureInPictureElement
       ) {
-        await startCompositePiP();
+        // Document PiP API must be user-gesture initiated. Automatic tab switch PiP requires standard video PiP.
+        if (document.pictureInPictureEnabled) {
+          await startCanvasPiP();
+        }
       }
     };
     document.addEventListener("visibilitychange", handleVisibility);
     return () => document.removeEventListener("visibilitychange", handleVisibility);
-  }, [startCompositePiP]);
+  }, [startCanvasPiP, pipWindow]);
 
   useEffect(() => {
-    return () => stopPiP();
-  }, [stopPiP]);
+    return () => {
+       stopPiP();
+       if (pipWindow) pipWindow.close();
+    };
+  }, [stopPiP, pipWindow]);
 
-  return { isPiP, togglePiP };
+  const PiPPortal = pipWindow ? createPortal(<PipGrid remoteStreams={remoteStreams} localStream={localStream} />, pipWindow.document.body) : null;
+
+  return { isPiP, togglePiP, PiPPortal };
 }

@@ -58,7 +58,7 @@ function VideoRoom() {
     localName
   );
 
-  const { togglePiP } = usePictureInPicture(localVideoRef, remoteStreams);
+  const { togglePiP, PiPPortal } = usePictureInPicture(localVideoRef, remoteStreams, localStream);
 
   useEffect(() => {
     if (localName && !started.current) {
@@ -263,6 +263,7 @@ function VideoRoom() {
         togglePiP={togglePiP}
         onLeave={leaveRoom}
       />
+      {PiPPortal}
     </div>
   );
 }

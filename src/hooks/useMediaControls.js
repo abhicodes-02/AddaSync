@@ -22,7 +22,6 @@ export default function useMediaControls(localStreamRef, peersRef) {
   const shareScreen = useCallback(async () => {
     try {
       if (isScreenSharing) {
-        // Find and stop the screen track specifically
         const currentTracks = localStreamRef.current?.getVideoTracks() || [];
         const screenTrack = currentTracks.find(t => t.label.toLowerCase().includes('screen') || t.label.toLowerCase().includes('window') || t.label.toLowerCase().includes('display'));
         
@@ -41,15 +40,42 @@ export default function useMediaControls(localStreamRef, peersRef) {
       });
 
       const screenVideoTrack = screenStream.getVideoTracks()[0];
+      const screenAudioTrack = screenStream.getAudioTracks()[0];
+      
       const currentCameraTrack = localStreamRef.current?.getVideoTracks()[0];
+      const currentMicTrack = localStreamRef.current?.getAudioTracks()[0];
 
-      // Replace track for remote peers
+      let mixedAudioTrack = null;
+      let audioCtx = null;
+
+      // Mix system audio and microphone if both exist
+      if (screenAudioTrack && currentMicTrack) {
+        audioCtx = new AudioContext();
+        const dest = audioCtx.createMediaStreamDestination();
+        
+        const micSource = audioCtx.createMediaStreamSource(new MediaStream([currentMicTrack]));
+        const sysSource = audioCtx.createMediaStreamSource(new MediaStream([screenAudioTrack]));
+        
+        micSource.connect(dest);
+        sysSource.connect(dest);
+        
+        mixedAudioTrack = dest.stream.getAudioTracks()[0];
+      } else if (screenAudioTrack) {
+        mixedAudioTrack = screenAudioTrack;
+      }
+
+      // Replace tracks for remote peers
       peersRef.current.forEach(pc => {
-        const sender = pc.getSenders().find((s) => s.track && s.track.kind === "video");
-        if (sender) sender.replaceTrack(screenVideoTrack);
+        const videoSender = pc.getSenders().find((s) => s.track && s.track.kind === "video");
+        if (videoSender) videoSender.replaceTrack(screenVideoTrack);
+        
+        if (mixedAudioTrack) {
+          const audioSender = pc.getSenders().find((s) => s.track && s.track.kind === "audio");
+          if (audioSender) audioSender.replaceTrack(mixedAudioTrack);
+        }
       });
       
-      // Replace track locally so late-joiners and local-preview get it
+      // Replace track locally
       if (localStreamRef.current && currentCameraTrack) {
         localStreamRef.current.removeTrack(currentCameraTrack);
         localStreamRef.current.addTrack(screenVideoTrack);
@@ -60,18 +86,28 @@ export default function useMediaControls(localStreamRef, peersRef) {
 
       screenVideoTrack.onended = () => {
         if (currentCameraTrack) {
-          // Restore camera for remote peers
+          // Restore original tracks for peers
           peersRef.current.forEach(pc => {
-            const sender = pc.getSenders().find((s) => s.track && s.track.kind === "video");
-            if (sender) sender.replaceTrack(currentCameraTrack);
+            const videoSender = pc.getSenders().find((s) => s.track && s.track.kind === "video");
+            if (videoSender) videoSender.replaceTrack(currentCameraTrack);
+            
+            if (mixedAudioTrack && currentMicTrack) {
+               const audioSender = pc.getSenders().find((s) => s.track && s.track.kind === "audio");
+               if (audioSender) audioSender.replaceTrack(currentMicTrack);
+            }
           });
 
-          // Restore camera locally
+          // Restore local video
           if (localStreamRef.current) {
             localStreamRef.current.removeTrack(screenVideoTrack);
             localStreamRef.current.addTrack(currentCameraTrack);
           }
         }
+        
+        if (audioCtx) {
+           audioCtx.close().catch(console.error);
+        }
+        
         setIsScreenSharing(false);
         window.dispatchEvent(new CustomEvent('screenshare-status', { detail: false }));
       };

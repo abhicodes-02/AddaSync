@@ -15,7 +15,7 @@ function RemoteVideo({ stream, isConnected, name, isPinned }) {
         ref={videoRef}
         autoPlay
         playsInline
-        className={`remote-video-element w-full h-full ${isConnected ? "object-contain" : "object-cover"} bg-[#0a0a0a] transition-all duration-700`}
+        className="remote-video-element w-full h-full object-contain bg-[#0a0a0a] transition-all duration-700"
       />
       <div className="
         absolute bottom-4 left-4 z-20

@@ -130,6 +130,13 @@ function VideoRoom() {
       />
 
       <div className="flex-1 flex overflow-hidden min-h-0 relative">
+        {/* Presentation Banner */}
+        {isScreenSharing && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 bg-cyan-600 text-white px-4 py-1.5 rounded-full text-sm font-medium shadow-lg animate-[slideIn_0.2s_ease-out]">
+            You are presenting to everyone
+          </div>
+        )}
+
         <VideoGrid
           localStream={localStream}
           remoteStream={remoteStream}

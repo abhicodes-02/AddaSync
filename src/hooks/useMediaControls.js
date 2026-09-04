@@ -48,35 +48,14 @@ export default function useMediaControls(localStreamRef, pcRef) {
       await sender.replaceTrack(screenTrack);
       setIsScreenSharing(true);
 
-      // Save a copy of the original stream before modifying
-      const origStream = new MediaStream(localStreamRef.current.getTracks());
-      setOriginalStream(origStream);
-
-      // Replace the track LOCALLY so YOU can see your screen share
-      const originalCameraTrack = localStreamRef.current?.getVideoTracks()[0];
-      if (originalCameraTrack) {
-        localStreamRef.current.removeTrack(originalCameraTrack);
-      }
-      localStreamRef.current.addTrack(screenTrack);
-
-      // Trigger a re-render to update the local video element
-      const event = new Event('streamchanged');
-      window.dispatchEvent(event);
-
+      // Handle when user clicks "Stop Sharing" in browser popup
       screenTrack.onended = () => {
+        const originalCameraTrack = localStreamRef.current?.getVideoTracks()[0];
         if (originalCameraTrack) {
           // Send camera back to remote user
           sender.replaceTrack(originalCameraTrack);
-          
-          // Show camera back on local video
-          localStreamRef.current.removeTrack(screenTrack);
-          localStreamRef.current.addTrack(originalCameraTrack);
-          
-          const event = new Event('streamchanged');
-          window.dispatchEvent(event);
         }
         setIsScreenSharing(false);
-        setOriginalStream(null);
       };
     } catch (err) {
       if (err.name === "NotAllowedError") {

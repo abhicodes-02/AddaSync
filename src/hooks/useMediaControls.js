@@ -22,38 +22,58 @@ export default function useMediaControls(localStreamRef, peersRef) {
   const shareScreen = useCallback(async () => {
     try {
       if (isScreenSharing) {
-        const currentVideoTrack = localStreamRef.current?.getVideoTracks()[0];
-        if (currentVideoTrack) {
-          currentVideoTrack.stop();
-          currentVideoTrack.dispatchEvent(new Event("ended"));
+        // Find and stop the screen track specifically
+        const currentTracks = localStreamRef.current?.getVideoTracks() || [];
+        const screenTrack = currentTracks.find(t => t.label.toLowerCase().includes('screen') || t.label.toLowerCase().includes('window') || t.label.toLowerCase().includes('display'));
+        
+        if (screenTrack) {
+          screenTrack.stop();
+          screenTrack.dispatchEvent(new Event("ended"));
+        } else {
+          setIsScreenSharing(false);
         }
         return;
       }
 
       const screenStream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
+        video: { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } },
+        audio: true
       });
 
-      const screenTrack = screenStream.getVideoTracks()[0];
+      const screenVideoTrack = screenStream.getVideoTracks()[0];
+      const currentCameraTrack = localStreamRef.current?.getVideoTracks()[0];
 
-      // Replace the track for ALL REMOTE users in the mesh
+      // Replace track for remote peers
       peersRef.current.forEach(pc => {
         const sender = pc.getSenders().find((s) => s.track && s.track.kind === "video");
-        if (sender) sender.replaceTrack(screenTrack);
+        if (sender) sender.replaceTrack(screenVideoTrack);
       });
       
+      // Replace track locally so late-joiners and local-preview get it
+      if (localStreamRef.current && currentCameraTrack) {
+        localStreamRef.current.removeTrack(currentCameraTrack);
+        localStreamRef.current.addTrack(screenVideoTrack);
+      }
+      
       setIsScreenSharing(true);
+      window.dispatchEvent(new CustomEvent('screenshare-status', { detail: true }));
 
-      screenTrack.onended = () => {
-        const originalCameraTrack = localStreamRef.current?.getVideoTracks()[0];
-        if (originalCameraTrack) {
-          // Restore camera for ALL remote users
+      screenVideoTrack.onended = () => {
+        if (currentCameraTrack) {
+          // Restore camera for remote peers
           peersRef.current.forEach(pc => {
             const sender = pc.getSenders().find((s) => s.track && s.track.kind === "video");
-            if (sender) sender.replaceTrack(originalCameraTrack);
+            if (sender) sender.replaceTrack(currentCameraTrack);
           });
+
+          // Restore camera locally
+          if (localStreamRef.current) {
+            localStreamRef.current.removeTrack(screenVideoTrack);
+            localStreamRef.current.addTrack(currentCameraTrack);
+          }
         }
         setIsScreenSharing(false);
+        window.dispatchEvent(new CustomEvent('screenshare-status', { detail: false }));
       };
     } catch (err) {
       console.log("Screen share error or cancel:", err);

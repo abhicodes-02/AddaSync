@@ -238,6 +238,7 @@ function VideoRoom() {
           connectionState={connectionState}
           roomId={roomId}
           localVideoRef={localVideoRef}
+          isScreenSharing={isScreenSharing}
         />
       </div>
 

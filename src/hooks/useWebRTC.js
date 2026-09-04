@@ -125,7 +125,15 @@ export default function useWebRTC(roomId, userName) {
     setLocalStream(stream);
 
     const myPartRef = doc(db, "calls", roomId, "participants", uid);
-    await setDoc(myPartRef, { joinedAt: Date.now(), userName: userName });
+    await setDoc(myPartRef, { joinedAt: Date.now(), userName: userName, isSharingScreen: false });
+
+    const handleScreenShareStatus = async (e) => {
+      try {
+         await updateDoc(myPartRef, { isSharingScreen: e.detail });
+      } catch (err) {}
+    };
+    window.addEventListener('screenshare-status', handleScreenShareStatus);
+    unsubscribers.current.push(() => window.removeEventListener('screenshare-status', handleScreenShareStatus));
 
     const offersRef = collection(myPartRef, "offers");
     const unsubOffers = onSnapshot(offersRef, (snap) => {
@@ -185,6 +193,11 @@ export default function useWebRTC(roomId, userName) {
                  next.set(targetUid, data.userName || "Participant");
                  return next;
                });
+               
+               // Dispatch screen share status for VideoGrid layout pinning
+               window.dispatchEvent(new CustomEvent('remote-screen-status', {
+                  detail: { uid: targetUid, isSharingScreen: !!data.isSharingScreen }
+               }));
              }
           }
           

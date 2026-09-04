@@ -12,9 +12,16 @@ export default function VideoGrid({
   // We use standard useEffects for both streams to avoid the "black video" glitch
   // caused by conditional rendering and unmounting of video tags.
   useEffect(() => {
-    if (localVideoRef.current && localStream) {
-      localVideoRef.current.srcObject = localStream;
-    }
+    const updateLocalStream = () => {
+      if (localVideoRef.current && localStream) {
+        localVideoRef.current.srcObject = null; // force clear first
+        localVideoRef.current.srcObject = localStream;
+      }
+    };
+
+    updateLocalStream();
+    window.addEventListener('streamchanged', updateLocalStream);
+    return () => window.removeEventListener('streamchanged', updateLocalStream);
   }, [localStream]);
 
   useEffect(() => {

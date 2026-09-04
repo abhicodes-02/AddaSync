@@ -4,6 +4,9 @@ export default function useMediaControls(localStreamRef, pcRef) {
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
+  
+  // Keep track of the original camera stream so we can restore it
+  const [originalStream, setOriginalStream] = useState(null);
 
   const toggleMute = useCallback(() => {
     const audioTrack = localStreamRef.current?.getAudioTracks()[0];
@@ -21,7 +24,6 @@ export default function useMediaControls(localStreamRef, pcRef) {
 
   const shareScreen = useCallback(async () => {
     try {
-      // If already sharing, trigger the stop logic manually
       if (isScreenSharing) {
         const currentVideoTrack = localStreamRef.current?.getVideoTracks()[0];
         if (currentVideoTrack) {
@@ -46,16 +48,21 @@ export default function useMediaControls(localStreamRef, pcRef) {
       await sender.replaceTrack(screenTrack);
       setIsScreenSharing(true);
 
-      // Find original camera track
-      const originalCameraTrack = localStreamRef.current?.getVideoTracks()[0];
+      // Save a copy of the original stream before modifying
+      const origStream = new MediaStream(localStreamRef.current.getTracks());
+      setOriginalStream(origStream);
 
       // Replace the track LOCALLY so YOU can see your screen share
+      const originalCameraTrack = localStreamRef.current?.getVideoTracks()[0];
       if (originalCameraTrack) {
         localStreamRef.current.removeTrack(originalCameraTrack);
-        localStreamRef.current.addTrack(screenTrack);
       }
+      localStreamRef.current.addTrack(screenTrack);
 
-      // Handle when user clicks "Stop Sharing" in browser popup
+      // Trigger a re-render to update the local video element
+      const event = new Event('streamchanged');
+      window.dispatchEvent(event);
+
       screenTrack.onended = () => {
         if (originalCameraTrack) {
           // Send camera back to remote user
@@ -64,8 +71,12 @@ export default function useMediaControls(localStreamRef, pcRef) {
           // Show camera back on local video
           localStreamRef.current.removeTrack(screenTrack);
           localStreamRef.current.addTrack(originalCameraTrack);
+          
+          const event = new Event('streamchanged');
+          window.dispatchEvent(event);
         }
         setIsScreenSharing(false);
+        setOriginalStream(null);
       };
     } catch (err) {
       if (err.name === "NotAllowedError") {

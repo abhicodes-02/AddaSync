@@ -27,10 +27,10 @@ function VideoRoom() {
 
   const {
     localStream,
-    remoteStream,
+    remoteStreams,
     connectionState,
     error,
-    pcRef,
+    peersRef,
     localStreamRef,
     start,
     cleanup,
@@ -43,14 +43,14 @@ function VideoRoom() {
     toggleMute,
     toggleCamera,
     shareScreen,
-  } = useMediaControls(localStreamRef, pcRef);
+  } = useMediaControls(localStreamRef, peersRef);
 
   const { messages, msg, setMsg, sendMessage, messagesEndRef } = useChat(
     roomId,
     userName
   );
 
-  const { togglePiP } = usePictureInPicture(localVideoRef, remoteVideoRef);
+  const { togglePiP } = usePictureInPicture(localVideoRef, remoteStreams);
 
   useEffect(() => {
     if (!started.current) {
@@ -132,10 +132,9 @@ function VideoRoom() {
       <div className="flex-1 w-full h-full relative">
         <VideoGrid
           localStream={localStream}
-          remoteStream={remoteStream}
+          remoteStreams={remoteStreams}
           connectionState={connectionState}
           roomId={roomId}
-          remoteVideoRef={remoteVideoRef}
           localVideoRef={localVideoRef}
         />
       </div>

@@ -1,12 +1,9 @@
 import { useState, useCallback } from "react";
 
-export default function useMediaControls(localStreamRef, pcRef) {
+export default function useMediaControls(localStreamRef, peersRef) {
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
-  
-  // Keep track of the original camera stream so we can restore it
-  const [originalStream, setOriginalStream] = useState(null);
 
   const toggleMute = useCallback(() => {
     const audioTrack = localStreamRef.current?.getAudioTracks()[0];
@@ -38,33 +35,30 @@ export default function useMediaControls(localStreamRef, pcRef) {
       });
 
       const screenTrack = screenStream.getVideoTracks()[0];
-      const sender = pcRef.current
-        ?.getSenders()
-        .find((s) => s.track && s.track.kind === "video");
 
-      if (!sender) return;
-
-      // Replace the track for the REMOTE user
-      await sender.replaceTrack(screenTrack);
+      // Replace the track for ALL REMOTE users in the mesh
+      peersRef.current.forEach(pc => {
+        const sender = pc.getSenders().find((s) => s.track && s.track.kind === "video");
+        if (sender) sender.replaceTrack(screenTrack);
+      });
+      
       setIsScreenSharing(true);
 
-      // Handle when user clicks "Stop Sharing" in browser popup
       screenTrack.onended = () => {
         const originalCameraTrack = localStreamRef.current?.getVideoTracks()[0];
         if (originalCameraTrack) {
-          // Send camera back to remote user
-          sender.replaceTrack(originalCameraTrack);
+          // Restore camera for ALL remote users
+          peersRef.current.forEach(pc => {
+            const sender = pc.getSenders().find((s) => s.track && s.track.kind === "video");
+            if (sender) sender.replaceTrack(originalCameraTrack);
+          });
         }
         setIsScreenSharing(false);
       };
     } catch (err) {
-      if (err.name === "NotAllowedError") {
-        console.log("User cancelled screen share");
-        return;
-      }
-      console.error("Screen share error:", err);
+      console.log("Screen share error or cancel:", err);
     }
-  }, [localStreamRef, pcRef, isScreenSharing]);
+  }, [localStreamRef, peersRef, isScreenSharing]);
 
   return {
     isMuted,

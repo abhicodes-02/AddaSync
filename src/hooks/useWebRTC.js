@@ -1,15 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { db } from "../firebase/firebase";
 import {
-  doc,
-  setDoc,
-  getDoc,
-  updateDoc,
-  deleteDoc,
-  onSnapshot,
-  collection,
-  addDoc,
-  getDocs,
+  doc, setDoc, deleteDoc, onSnapshot, collection, addDoc, getDocs
 } from "firebase/firestore";
 
 const ICE_SERVERS = {
@@ -20,162 +12,186 @@ const ICE_SERVERS = {
 };
 
 export default function useWebRTC(roomId) {
-  const pcRef = useRef(null);
+  const peersRef = useRef(new Map());
   const localStreamRef = useRef(null);
-  const remoteStreamRef = useRef(null);
-  const remoteDescSet = useRef(false);
+  const myUid = useRef(Math.random().toString(36).substring(2, 12));
   const unsubscribers = useRef([]);
-
+  
   const [localStream, setLocalStream] = useState(null);
-  const [remoteStream, setRemoteStream] = useState(null);
-  const [connectionState, setConnectionState] = useState("new"); // new | connecting | connected | disconnected | failed
+  const [remoteStreams, setRemoteStreams] = useState(new Map());
+  const [connectionState, setConnectionState] = useState("new");
   const [error, setError] = useState(null);
+
+  const removePeer = (uid) => {
+     if (peersRef.current.has(uid)) {
+       peersRef.current.get(uid).close();
+       peersRef.current.delete(uid);
+     }
+     setRemoteStreams(prev => {
+       const next = new Map(prev);
+       next.delete(uid);
+       return next;
+     });
+  };
 
   const cleanup = useCallback(async () => {
     unsubscribers.current.forEach((unsub) => unsub());
     unsubscribers.current = [];
 
-    pcRef.current?.close();
-    pcRef.current = null;
+    peersRef.current.forEach(pc => pc.close());
+    peersRef.current.clear();
 
     localStreamRef.current?.getTracks().forEach((t) => t.stop());
     localStreamRef.current = null;
+    setLocalStream(null);
+    setRemoteStreams(new Map());
 
-    // Clean up Firestore room data
     try {
-      const callRef = doc(db, "calls", roomId);
-      const offerSnap = await getDocs(collection(db, "calls", roomId, "offerCandidates"));
-      const answerSnap = await getDocs(collection(db, "calls", roomId, "answerCandidates"));
-      const chatSnap = await getDocs(collection(db, "calls", roomId, "chat"));
-
-      const deletes = [];
-      offerSnap.forEach((d) => deletes.push(deleteDoc(d.ref)));
-      answerSnap.forEach((d) => deletes.push(deleteDoc(d.ref)));
-      chatSnap.forEach((d) => deletes.push(deleteDoc(d.ref)));
-      deletes.push(deleteDoc(callRef));
-      await Promise.all(deletes);
+      const myPartRef = doc(db, "calls", roomId, "participants", myUid.current);
+      await deleteDoc(myPartRef);
     } catch (e) {
-      console.warn("Firestore cleanup error:", e);
+      console.warn("Cleanup error:", e);
     }
   }, [roomId]);
+
+  const createPeerConnection = (targetUid) => {
+    if (peersRef.current.has(targetUid)) return peersRef.current.get(targetUid);
+
+    const pc = new RTCPeerConnection(ICE_SERVERS);
+    peersRef.current.set(targetUid, pc);
+
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(track => {
+        pc.addTrack(track, localStreamRef.current);
+      });
+    }
+
+    pc.ontrack = (event) => {
+      setRemoteStreams(prev => {
+        const next = new Map(prev);
+        next.set(targetUid, event.streams[0]);
+        return next;
+      });
+    };
+
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+         const col = collection(db, "calls", roomId, "participants", targetUid, "candidates");
+         addDoc(col, {
+            senderUid: myUid.current,
+            candidate: event.candidate.toJSON()
+         });
+      }
+    };
+
+    pc.onconnectionstatechange = () => {
+       if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
+          removePeer(targetUid);
+       }
+    };
+
+    return pc;
+  };
 
   const start = useCallback(async () => {
     try {
       setConnectionState("connecting");
 
-      const pc = new RTCPeerConnection(ICE_SERVERS);
-      pcRef.current = pc;
-
-      pc.onconnectionstatechange = () => {
-        setConnectionState(pc.connectionState);
-      };
-
-      // Get local media
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true,
-      });
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       localStreamRef.current = stream;
       setLocalStream(stream);
 
-      stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+      const myPartRef = doc(db, "calls", roomId, "participants", myUid.current);
+      await setDoc(myPartRef, { joinedAt: Date.now() });
 
-      // Set up remote stream
-      const remote = new MediaStream();
-      remoteStreamRef.current = remote;
-      setRemoteStream(remote);
+      const offersRef = collection(myPartRef, "offers");
+      const unsubOffers = onSnapshot(offersRef, (snap) => {
+        snap.docChanges().forEach(async (change) => {
+          if (change.type === "added") {
+            const data = change.doc.data();
+            const pc = createPeerConnection(data.senderUid);
+            await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
 
-      pc.ontrack = (event) => {
-        event.streams[0].getTracks().forEach((track) => {
-          remote.addTrack(track);
-        });
-      };
-
-      // Firestore signaling
-      const callRef = doc(db, "calls", roomId);
-      const offerCandidates = collection(db, "calls", roomId, "offerCandidates");
-      const answerCandidates = collection(db, "calls", roomId, "answerCandidates");
-
-      pc.onicecandidate = (e) => {
-        if (!e.candidate) return;
-        const data = e.candidate.toJSON();
-        if (pc.signalingState === "have-local-offer") {
-          addDoc(offerCandidates, data);
-        } else {
-          addDoc(answerCandidates, data);
-        }
-      };
-
-      const callData = await getDoc(callRef);
-
-      if (!callData.exists()) {
-        // Creator: make offer
-        await setDoc(callRef, { roomId });
-
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        await updateDoc(callRef, {
-          offer: { type: offer.type, sdp: offer.sdp },
-        });
-
-        const unsubCall = onSnapshot(callRef, (snap) => {
-          const data = snap.data();
-          if (data?.answer && !remoteDescSet.current) {
-            remoteDescSet.current = true;
-            pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+            const targetAnswersRef = collection(db, "calls", roomId, "participants", data.senderUid, "answers");
+            await addDoc(targetAnswersRef, {
+              senderUid: myUid.current,
+              answer: { type: answer.type, sdp: answer.sdp }
+            });
           }
         });
+      });
 
-        const unsubAnswer = onSnapshot(answerCandidates, (snap) => {
-          snap.docChanges().forEach((c) => {
-            if (c.type === "added") {
-              pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
+      const answersRef = collection(myPartRef, "answers");
+      const unsubAnswers = onSnapshot(answersRef, (snap) => {
+        snap.docChanges().forEach(async (change) => {
+          if (change.type === "added") {
+            const data = change.doc.data();
+            const pc = peersRef.current.get(data.senderUid);
+            if (pc && pc.signalingState !== 'stable') {
+               await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
             }
-          });
+          }
         });
+      });
 
-        unsubscribers.current.push(unsubCall, unsubAnswer);
-      } else {
-        // Joiner: answer
-        const offer = callData.data().offer;
-        await pc.setRemoteDescription(new RTCSessionDescription(offer));
-
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-        await updateDoc(callRef, {
-          answer: { type: answer.type, sdp: answer.sdp },
-        });
-
-        const unsubOffer = onSnapshot(offerCandidates, (snap) => {
-          snap.docChanges().forEach((c) => {
-            if (c.type === "added") {
-              pc.addIceCandidate(new RTCIceCandidate(c.doc.data()));
+      const candidatesRef = collection(myPartRef, "candidates");
+      const unsubCandidates = onSnapshot(candidatesRef, (snap) => {
+        snap.docChanges().forEach(async (change) => {
+          if (change.type === "added") {
+            const data = change.doc.data();
+            const pc = peersRef.current.get(data.senderUid);
+            if (pc) {
+               await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
             }
-          });
+          }
         });
+      });
 
-        unsubscribers.current.push(unsubOffer);
-      }
+      // Listen for NEW participants who join after me, so I can offer to them
+      const participantsRef = collection(db, "calls", roomId, "participants");
+      const unsubParticipants = onSnapshot(participantsRef, (snap) => {
+         snap.docChanges().forEach(async (change) => {
+            if (change.type === "added") {
+               const targetUid = change.doc.id;
+               if (targetUid !== myUid.current && !peersRef.current.has(targetUid)) {
+                  // They joined, I will offer to them if they are newer
+                  if (change.doc.data().joinedAt > Date.now() - 5000) {
+                      const pc = createPeerConnection(targetUid);
+                      const offer = await pc.createOffer();
+                      await pc.setLocalDescription(offer);
+
+                      const targetOffersRef = collection(db, "calls", roomId, "participants", targetUid, "offers");
+                      await addDoc(targetOffersRef, {
+                         senderUid: myUid.current,
+                         offer: { type: offer.type, sdp: offer.sdp }
+                      });
+                  }
+               }
+            }
+         });
+      });
+
+      unsubscribers.current.push(unsubOffers, unsubAnswers, unsubCandidates, unsubParticipants);
+
+      setConnectionState("connected");
+
     } catch (err) {
-      console.error("WebRTC start error:", err);
-      setError(err.name === "NotAllowedError"
-        ? "Camera and microphone access denied. Please allow access in your browser settings."
-        : err.name === "NotFoundError"
-          ? "No camera or microphone found. Please connect a device."
-          : "Failed to start video call. Please try again."
-      );
-      setConnectionState("failed");
+       console.error("WebRTC Error:", err);
+       setError("Failed to start video call. Please allow camera and mic permissions.");
+       setConnectionState("failed");
     }
   }, [roomId]);
 
   return {
     localStream,
-    remoteStream,
+    remoteStreams,
     connectionState,
     error,
-    pcRef,
+    peersRef,
     localStreamRef,
     start,
-    cleanup,
+    cleanup
   };
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 
-export default function usePictureInPicture(localVideoRef, remoteVideoRef) {
+export default function usePictureInPicture(localVideoRef, remoteStreams) {
   const [isPiP, setIsPiP] = useState(false);
   const pipVideoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -23,23 +23,19 @@ export default function usePictureInPicture(localVideoRef, remoteVideoRef) {
 
   const startCompositePiP = useCallback(async () => {
     try {
-      if (!localVideoRef.current || !remoteVideoRef.current) return;
       if (document.pictureInPictureElement) return;
 
-      // 1. Create a hidden Canvas (720p 16:9)
       const canvas = document.createElement("canvas");
       canvas.width = 1280;
       canvas.height = 720;
       const ctx = canvas.getContext("2d");
       canvasRef.current = canvas;
 
-      // 2. Create a hidden video element to feed to PiP
       const pipVideo = document.createElement("video");
       pipVideo.muted = true;
       pipVideo.playsInline = true;
       pipVideoRef.current = pipVideo;
 
-      // 3. Render Loop - Composites both videos into one frame
       const drawFrame = () => {
         if (!ctx || !canvasRef.current) return;
 
@@ -47,9 +43,16 @@ export default function usePictureInPicture(localVideoRef, remoteVideoRef) {
         ctx.fillStyle = "#0a0a0a";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Draw Remote Video (Simulate object-contain)
-        const remote = remoteVideoRef.current;
-        if (remote && remote.readyState >= 2) {
+        // Get all active remote video elements from the DOM
+        const remoteVideos = Array.from(document.querySelectorAll('.remote-video-element'))
+                                  .filter(v => v.readyState >= 2);
+        
+        const count = remoteVideos.length;
+
+        // Draw Remote Videos in a Grid
+        if (count === 1) {
+          // Single Remote Video (Full Screen)
+          const remote = remoteVideos[0];
           const rRatio = remote.videoWidth / remote.videoHeight;
           const cRatio = canvas.width / canvas.height;
           let drawW, drawH, drawX, drawY;
@@ -66,9 +69,48 @@ export default function usePictureInPicture(localVideoRef, remoteVideoRef) {
             drawY = 0;
           }
           ctx.drawImage(remote, drawX, drawY, drawW, drawH);
+        } else if (count > 1) {
+          // Multiple Remote Videos Grid
+          let cols = 2;
+          let rows = Math.ceil(count / 2);
+          
+          const cellW = canvas.width / cols;
+          const cellH = canvas.height / rows;
+
+          remoteVideos.forEach((remote, i) => {
+             const row = Math.floor(i / cols);
+             const col = i % cols;
+             const x = col * cellW;
+             const y = row * cellH;
+
+             // object-cover simulation for grid cells
+             ctx.save();
+             ctx.beginPath();
+             ctx.rect(x, y, cellW, cellH);
+             ctx.clip();
+
+             const vRatio = remote.videoWidth / remote.videoHeight;
+             const boxRatio = cellW / cellH;
+             let sW, sH, sX, sY;
+
+             if (vRatio > boxRatio) {
+               sH = remote.videoHeight;
+               sW = remote.videoHeight * boxRatio;
+               sX = (remote.videoWidth - sW) / 2;
+               sY = 0;
+             } else {
+               sW = remote.videoWidth;
+               sH = remote.videoWidth / boxRatio;
+               sX = 0;
+               sY = (remote.videoHeight - sH) / 2;
+             }
+             
+             ctx.drawImage(remote, sX, sY, sW, sH, x, y, cellW, cellH);
+             ctx.restore();
+          });
         }
 
-        // Draw Local Video (Floating bottom right, simulate object-cover)
+        // Draw Local Video (Floating bottom right)
         const local = localVideoRef.current;
         if (local && local.readyState >= 2) {
           const padding = 40;
@@ -78,8 +120,6 @@ export default function usePictureInPicture(localVideoRef, remoteVideoRef) {
           const pipY = canvas.height - pipH - padding;
 
           ctx.save();
-          
-          // Add border and drop shadow
           ctx.shadowColor = "rgba(0,0,0,0.6)";
           ctx.shadowBlur = 24;
           ctx.shadowOffsetY = 12;
@@ -87,7 +127,6 @@ export default function usePictureInPicture(localVideoRef, remoteVideoRef) {
           ctx.strokeStyle = "rgba(255,255,255,0.15)";
           ctx.strokeRect(pipX, pipY, pipW, pipH);
           
-          // Clip path for local video
           ctx.beginPath();
           ctx.rect(pipX, pipY, pipW, pipH);
           ctx.clip();
@@ -108,7 +147,11 @@ export default function usePictureInPicture(localVideoRef, remoteVideoRef) {
             sY = (local.videoHeight - sH) / 2;
           }
           
-          ctx.drawImage(local, sX, sY, sW, sH, pipX, pipY, pipW, pipH);
+          // Apply horizontal mirror specifically for PiP local view
+          ctx.translate(pipX + pipW, pipY);
+          ctx.scale(-1, 1);
+          
+          ctx.drawImage(local, sX, sY, sW, sH, 0, 0, pipW, pipH);
           ctx.restore();
         }
 
@@ -117,24 +160,20 @@ export default function usePictureInPicture(localVideoRef, remoteVideoRef) {
       
       animationRef.current = requestAnimationFrame(drawFrame);
 
-      // 4. Extract stream and push to hidden video
       const stream = canvas.captureStream(30);
       pipVideo.srcObject = stream;
       
       await pipVideo.play();
-      
-      // 5. Native Browser PiP trigger
       await pipVideo.requestPictureInPicture();
       setIsPiP(true);
 
-      // Cleanup if user clicks the native 'x' on the PiP window
       pipVideo.addEventListener('leavepictureinpicture', stopPiP);
 
     } catch (err) {
       console.error("Failed to start Composite PiP:", err);
       stopPiP();
     }
-  }, [localVideoRef, remoteVideoRef, stopPiP]);
+  }, [localVideoRef]); // remoteStreams acts as a trigger but we query DOM.
 
   const togglePiP = useCallback(async () => {
     if (document.pictureInPictureElement) {
@@ -155,7 +194,6 @@ export default function usePictureInPicture(localVideoRef, remoteVideoRef) {
         await startCompositePiP();
       }
     };
-
     document.addEventListener("visibilitychange", handleVisibility);
     return () => document.removeEventListener("visibilitychange", handleVisibility);
   }, [startCompositePiP]);

@@ -38,9 +38,9 @@ export default function RoomHeader({
   return (
     <header className="absolute top-4 sm:top-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 sm:gap-3">
       {/* Main Info Pill */}
-      <div className="flex items-center gap-3 sm:gap-4 h-11 sm:h-12 px-4 sm:px-5 rounded-full backdrop-blur-2xl bg-slate-900/60 border border-white/10 shadow-2xl">
+      <div className="flex items-center gap-3 sm:gap-4 h-11 sm:h-12 pl-1.5 pr-4 sm:pr-5 rounded-full backdrop-blur-2xl bg-slate-900/60 border border-white/10 shadow-2xl">
         <div className="flex items-center gap-2.5">
-          <div className={`w-2 h-2 rounded-full shadow-[0_0_8px_rgba(0,0,0,0.5)] ${stateInfo.color}`} />
+          <img src="/logo.jpg" alt="MeetFlow" className="w-8 h-8 rounded-full object-cover" />
           <span className="text-sm font-semibold text-white tracking-wide">
             {roomId}
           </span>

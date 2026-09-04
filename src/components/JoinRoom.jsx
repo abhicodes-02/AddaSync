@@ -32,8 +32,8 @@ export default function JoinRoom() {
       <div className="relative z-10 w-full max-w-md">
         <div className="backdrop-blur-2xl bg-white/[0.02] border border-white/10 rounded-[2rem] shadow-2xl p-8 sm:p-10">
           <div className="text-center mb-10">
-            <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-gradient-to-tr from-cyan-500 to-blue-500 flex items-center justify-center shadow-lg shadow-cyan-500/25">
-              <FiVideo className="text-3xl text-white" />
+            <div className="w-20 h-20 mx-auto mb-6 rounded-[2rem] bg-gradient-to-tr from-cyan-500/20 to-blue-500/20 p-0.5 flex items-center justify-center shadow-[0_0_40px_rgba(6,182,212,0.15)] overflow-hidden">
+              <img src="/logo.jpg" alt="MeetFlow Logo" className="w-full h-full object-cover rounded-[1.8rem]" />
             </div>
             <h1 className="text-3xl font-bold tracking-tight text-white mb-2">
               MeetFlow

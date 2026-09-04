@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 
 export default function VideoGrid({
   localStream,
@@ -6,9 +6,8 @@ export default function VideoGrid({
   connectionState,
   roomId,
   remoteVideoRef,
+  localVideoRef,
 }) {
-  const localVideoRef = useRef(null);
-
   useEffect(() => {
     const updateLocalStream = () => {
       if (localVideoRef.current && localStream) {

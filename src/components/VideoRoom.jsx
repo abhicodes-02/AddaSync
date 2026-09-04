@@ -19,6 +19,7 @@ function VideoRoom() {
 
   const userName = location.state?.userName || "Guest";
   const remoteVideoRef = useRef(null);
+  const localVideoRef = useRef(null);
   const started = useRef(false);
 
   const [chatOpen, setChatOpen] = useState(window.innerWidth >= 1024);
@@ -49,7 +50,7 @@ function VideoRoom() {
     userName
   );
 
-  const { togglePiP } = usePictureInPicture(remoteVideoRef);
+  const { togglePiP } = usePictureInPicture(localVideoRef, remoteVideoRef);
 
   useEffect(() => {
     if (!started.current) {
@@ -135,6 +136,7 @@ function VideoRoom() {
           connectionState={connectionState}
           roomId={roomId}
           remoteVideoRef={remoteVideoRef}
+          localVideoRef={localVideoRef}
         />
       </div>
 

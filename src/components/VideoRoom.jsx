@@ -37,6 +37,9 @@ function VideoRoom() {
     error,
     peersRef,
     localStreamRef,
+    isHost,
+    pendingKnockers,
+    resolveKnock,
     start,
     cleanup,
   } = useWebRTC(roomId, localName);
@@ -60,7 +63,7 @@ function VideoRoom() {
   useEffect(() => {
     if (localName && !started.current) {
       started.current = true;
-      start().then(() => setIsReady(true));
+      start().then(() => setIsReady(true)).catch(() => setIsReady(true));
     }
   }, [localName, start]);
 
@@ -127,6 +130,27 @@ function VideoRoom() {
     );
   }
 
+  if (connectionState === "knocking") {
+    return (
+      <div className="h-screen bg-[#0a0a0a] flex items-center justify-center p-4 relative overflow-hidden">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+          <div className="absolute top-1/4 -left-1/4 w-[500px] h-[500px] bg-amber-500/10 rounded-full blur-[120px] mix-blend-screen animate-[pulse_4s_ease-in-out_infinite]" />
+        </div>
+        <div className="text-center max-w-md relative z-10 backdrop-blur-xl bg-white/[0.02] border border-white/10 p-10 rounded-[2rem] shadow-2xl">
+          <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-amber-500/20 flex items-center justify-center shadow-[0_0_30px_rgba(245,158,11,0.3)]">
+            <div className="w-6 h-6 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+          </div>
+          <h2 className="text-2xl font-bold text-white mb-3 tracking-tight">
+            Waiting for Host
+          </h2>
+          <p className="text-slate-400 mb-2">
+            You're in the waiting room. The meeting host will let you in shortly.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (error) {
     return (
       <div className="h-screen bg-[#0a0a0a] flex items-center justify-center p-4">
@@ -135,7 +159,7 @@ function VideoRoom() {
             ⚠️
           </div>
           <h2 className="text-2xl font-bold text-white mb-3 tracking-tight">
-            Unable to Connect
+            Connection Failed
           </h2>
           <p className="text-slate-400 mb-8">{error}</p>
           <button
@@ -156,12 +180,47 @@ function VideoRoom() {
   return (
     <div className="h-screen w-screen bg-[#0a0a0a] text-white flex overflow-hidden relative font-sans">
       
+      {/* Floating Presentation Banner */}
       {isScreenSharing && (
         <div className="absolute top-8 left-1/2 -translate-x-1/2 z-50 backdrop-blur-xl bg-cyan-500/20 border border-cyan-500/30 text-cyan-50 px-5 py-2 rounded-full text-sm font-semibold shadow-[0_0_20px_rgba(6,182,212,0.3)] animate-[slideIn_0.2s_ease-out]">
           You are presenting to everyone
         </div>
       )}
 
+      {/* Host Knocking Notifications */}
+      {isHost && pendingKnockers.length > 0 && (
+        <div className="absolute top-4 right-4 sm:top-8 sm:right-8 z-50 flex flex-col gap-3 max-w-xs w-full">
+          {pendingKnockers.map(knocker => (
+            <div key={knocker.uid} className="backdrop-blur-xl bg-slate-900/90 border border-white/10 p-4 rounded-2xl shadow-2xl animate-[slideIn_0.3s_ease-out]">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-full bg-cyan-500 flex items-center justify-center font-bold shadow-lg shadow-cyan-500/30 text-lg">
+                  {knocker.userName.charAt(0).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-white truncate">{knocker.userName}</p>
+                  <p className="text-xs text-slate-400">wants to join</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => resolveKnock(knocker.uid, "denied")} 
+                  className="flex-1 py-2 rounded-xl bg-red-500/10 text-red-400 text-sm font-semibold hover:bg-red-500/20 active:scale-95 transition-all"
+                >
+                  Deny
+                </button>
+                <button 
+                  onClick={() => resolveKnock(knocker.uid, "admitted")} 
+                  className="flex-1 py-2 rounded-xl bg-cyan-500 text-white text-sm font-semibold hover:bg-cyan-400 shadow-lg shadow-cyan-500/20 active:scale-95 transition-all"
+                >
+                  Admit
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Main Spatial Layout */}
       <RoomHeader
         roomId={roomId}
         connectionState={connectionState}

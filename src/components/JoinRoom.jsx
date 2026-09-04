@@ -14,7 +14,7 @@ export default function JoinRoom() {
       return;
     }
     navigate(`/room/${trimmed}`, {
-      state: { userName: userName.trim() || "Guest" },
+      state: { userName: userName.trim() },
     });
   };
 
@@ -73,7 +73,8 @@ export default function JoinRoom() {
 
             <button
               onClick={joinRoom}
-              className="w-full group relative flex items-center justify-center gap-2 bg-white text-black font-semibold rounded-xl px-4 py-3.5 hover:bg-slate-100 transition-all active:scale-[0.98]"
+              disabled={!userName.trim()}
+              className="w-full group relative flex items-center justify-center gap-2 bg-white text-black font-semibold rounded-xl px-4 py-3.5 hover:bg-slate-100 transition-all active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100"
             >
               Join Meeting
               <FiArrowRight className="group-hover:translate-x-1 transition-transform" />

@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "site": "videoconference-977e1",
+    "site": "meetflow",
     "public": "dist",
     "ignore": [
       "firebase.json",

@@ -8,7 +8,7 @@ import usePictureInPicture from "../hooks/usePictureInPicture";
 
 import RoomHeader from "./room/RoomHeader";
 import VideoGrid from "./room/VideoGrid";
-import ChatPanel from "./room/ChatPanel";
+import SidePanel from "./room/SidePanel";
 import ControlDock from "./room/ControlDock";
 import LoadingScreen from "./ui/LoadingScreen";
 import { FiArrowRight } from "react-icons/fi";
@@ -25,7 +25,8 @@ function VideoRoom() {
   const localVideoRef = useRef(null);
   const started = useRef(false);
 
-  const [chatOpen, setChatOpen] = useState(window.innerWidth >= 1024);
+  // 'chat', 'people', or null
+  const [activeTab, setActiveTab] = useState(window.innerWidth >= 1024 ? "chat" : null);
   const [isReady, setIsReady] = useState(false);
 
   const {
@@ -155,19 +156,17 @@ function VideoRoom() {
   return (
     <div className="h-screen w-screen bg-[#0a0a0a] text-white flex overflow-hidden relative font-sans">
       
-      {/* Floating Presentation Banner */}
       {isScreenSharing && (
         <div className="absolute top-8 left-1/2 -translate-x-1/2 z-50 backdrop-blur-xl bg-cyan-500/20 border border-cyan-500/30 text-cyan-50 px-5 py-2 rounded-full text-sm font-semibold shadow-[0_0_20px_rgba(6,182,212,0.3)] animate-[slideIn_0.2s_ease-out]">
           You are presenting to everyone
         </div>
       )}
 
-      {/* Main Spatial Layout */}
       <RoomHeader
         roomId={roomId}
         connectionState={connectionState}
-        chatOpen={chatOpen}
-        setChatOpen={setChatOpen}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
         participantsCount={remoteStreams.size + 1}
       />
 
@@ -183,15 +182,16 @@ function VideoRoom() {
         />
       </div>
 
-      <ChatPanel
-        chatOpen={chatOpen}
-        setChatOpen={setChatOpen}
+      <SidePanel
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
         messages={messages}
         msg={msg}
         setMsg={setMsg}
         sendMessage={sendMessage}
         messagesEndRef={messagesEndRef}
         userName={localName}
+        participantNames={participantNames}
       />
 
       <ControlDock

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-function RemoteVideo({ stream, isConnected }) {
+function RemoteVideo({ stream, isConnected, name }) {
   const videoRef = useRef(null);
 
   useEffect(() => {
@@ -23,7 +23,7 @@ function RemoteVideo({ stream, isConnected }) {
         px-3 py-1.5 rounded-xl border border-white/10
         text-xs text-white font-medium shadow-xl
       ">
-        Participant
+        {name}
       </div>
     </div>
   );
@@ -32,6 +32,8 @@ function RemoteVideo({ stream, isConnected }) {
 export default function VideoGrid({
   localStream,
   remoteStreams,
+  participantNames,
+  localName,
   connectionState,
   roomId,
   localVideoRef,
@@ -49,8 +51,9 @@ export default function VideoGrid({
   }, [localStream, localVideoRef]);
 
   const isConnected = connectionState === "connected";
-  const streamsArray = Array.from(remoteStreams.values());
-  const count = streamsArray.length;
+  // We need to iterate over entries to get the UID for name lookup
+  const streamsEntries = Array.from(remoteStreams.entries());
+  const count = streamsEntries.length;
 
   // Determine optimal grid layout
   let gridCols = "grid-cols-1";
@@ -86,8 +89,13 @@ export default function VideoGrid({
             </p>
           </div>
         ) : (
-          streamsArray.map((stream) => (
-            <RemoteVideo key={stream.id} stream={stream} isConnected={isConnected} />
+          streamsEntries.map(([uid, stream]) => (
+            <RemoteVideo 
+              key={uid} 
+              stream={stream} 
+              isConnected={isConnected} 
+              name={participantNames?.get(uid) || "Participant"} 
+            />
           ))
         )}
       </div>
@@ -117,7 +125,7 @@ export default function VideoGrid({
           px-2.5 py-1 rounded-md text-[11px] text-white font-medium
           border border-white/10
         ">
-          You
+          {localName ? `${localName} (You)` : "You"}
         </div>
       </div>
     </div>

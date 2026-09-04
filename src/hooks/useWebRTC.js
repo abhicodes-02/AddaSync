@@ -104,7 +104,14 @@ export default function useWebRTC(roomId, userName) {
     try {
       setConnectionState("connecting");
 
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          width: { ideal: 640 }, 
+          height: { ideal: 480 },
+          frameRate: { ideal: 24 }
+        }, 
+        audio: true 
+      });
       localStreamRef.current = stream;
       setLocalStream(stream);
 

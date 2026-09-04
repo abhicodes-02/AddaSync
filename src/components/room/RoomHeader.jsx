@@ -12,8 +12,8 @@ const STATE_LABELS = {
 export default function RoomHeader({
   roomId,
   connectionState,
-  chatOpen,
-  setChatOpen,
+  activeTab,
+  setActiveTab,
   participantsCount = 1
 }) {
   const addToast = useToast();
@@ -70,14 +70,22 @@ export default function RoomHeader({
 
       {/* Bottom Right: Participants & Chat Toggle */}
       <div className="absolute bottom-6 sm:bottom-8 right-4 sm:right-6 z-40 flex items-center gap-1 p-1 rounded-full backdrop-blur-2xl bg-slate-900/60 border border-white/10 shadow-2xl hidden sm:flex">
-        <div className="flex items-center gap-2 px-3 text-sm font-medium text-slate-300" title="Participants">
+        <button
+          onClick={() => setActiveTab(activeTab === "people" ? null : "people")}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-full transition-all text-sm font-medium ${
+            activeTab === "people"
+              ? "bg-cyan-500 text-white shadow-[0_0_15px_rgba(6,182,212,0.4)]"
+              : "hover:bg-white/10 text-slate-300 hover:text-white"
+          }`}
+          title="Participants"
+        >
           <FiUsers size={14} />
           <span>{participantsCount}</span>
-        </div>
+        </button>
         <button
-          onClick={() => setChatOpen(!chatOpen)}
+          onClick={() => setActiveTab(activeTab === "chat" ? null : "chat")}
           className={`h-9 w-9 flex items-center justify-center rounded-full transition-all ${
-            chatOpen
+            activeTab === "chat"
               ? "bg-cyan-500 text-white shadow-[0_0_15px_rgba(6,182,212,0.4)]"
               : "hover:bg-white/10 text-slate-300 hover:text-white"
           }`}

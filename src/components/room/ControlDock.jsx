@@ -1,11 +1,14 @@
+import { useRef, memo } from "react";
 import {
   FiMic,
   FiMicOff,
   FiVideo,
   FiVideoOff,
   FiMonitor,
+  FiFilm,
   FiPhoneOff,
   FiMinimize2,
+  FiRefreshCcw,
 } from "react-icons/fi";
 
 function DockButton({ onClick, active, danger, accent, tooltip, children }) {
@@ -14,7 +17,7 @@ function DockButton({ onClick, active, danger, accent, tooltip, children }) {
       <button
         onClick={onClick}
         className={`
-          h-11 w-11 sm:h-12 sm:w-12
+          h-10 w-10 sm:h-12 sm:w-12
           rounded-2xl
           flex items-center justify-center
           transition-all duration-300
@@ -48,23 +51,37 @@ function DockButton({ onClick, active, danger, accent, tooltip, children }) {
   );
 }
 
-export default function ControlDock({
+const ControlDock = memo(function ControlDock({
   isMuted,
   isCameraOff,
   isScreenSharing,
   toggleMute,
   toggleCamera,
+  switchCamera,
   shareScreen,
+  onShareMedia,
+  onStopMedia,
   togglePiP,
   onLeave,
+  mediaFileUrl,
 }) {
+  const fileInputRef = useRef(null);
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file && onShareMedia) {
+      onShareMedia(file);
+    }
+    e.target.value = null;
+  };
+
   return (
     <div className="absolute bottom-6 sm:bottom-8 left-1/2 -translate-x-1/2 z-40">
       <div className="
         backdrop-blur-2xl bg-slate-900/60
         border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.36)]
         rounded-[2rem] p-2 sm:p-2.5
-        flex items-center gap-2 sm:gap-2.5
+        flex items-center gap-1 sm:gap-2.5
       ">
         <DockButton onClick={toggleMute} active={isMuted} tooltip={isMuted ? "Unmute (M)" : "Mute (M)"}>
           {isMuted ? <FiMicOff size={18} /> : <FiMic size={18} />}
@@ -74,11 +91,36 @@ export default function ControlDock({
           {isCameraOff ? <FiVideoOff size={18} /> : <FiVideo size={18} />}
         </DockButton>
 
+        {!isCameraOff && (
+          <div className="sm:hidden">
+            <DockButton onClick={switchCamera} tooltip="Flip Camera">
+              <FiRefreshCcw size={18} />
+            </DockButton>
+          </div>
+        )}
+
         <div className="w-px h-8 bg-white/10 mx-0.5" />
 
         <DockButton onClick={shareScreen} accent={isScreenSharing} tooltip={isScreenSharing ? "Stop Sharing" : "Present Screen"}>
           <FiMonitor size={18} />
         </DockButton>
+        
+        <input 
+           type="file" 
+           ref={fileInputRef} 
+           accept="video/*,audio/*" 
+           onChange={handleFileChange} 
+           className="hidden" 
+        />
+        {mediaFileUrl ? (
+          <DockButton onClick={onStopMedia} active tooltip="Stop Media">
+            <FiFilm size={18} />
+          </DockButton>
+        ) : (
+          <DockButton onClick={() => fileInputRef.current?.click()} tooltip="Share Media File">
+            <FiFilm size={18} />
+          </DockButton>
+        )}
 
         <div className="hidden sm:block">
           <DockButton onClick={togglePiP} tooltip="Picture in Picture">
@@ -94,4 +136,6 @@ export default function ControlDock({
       </div>
     </div>
   );
-}
+});
+
+export default ControlDock;

@@ -13,6 +13,7 @@ export default function JoinRoom() {
       alert("Room ID must be at least 4 characters");
       return;
     }
+    try { sessionStorage.setItem("meetflow_navigated", "true"); } catch (e) {}
     navigate(`/room/${trimmed}`, {
       state: { userName: userName.trim() },
     });
@@ -24,7 +25,7 @@ export default function JoinRoom() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] relative overflow-hidden flex items-center justify-center p-4 font-sans text-white">
+    <div className="min-h-[100dvh] bg-[#0a0a0a] relative overflow-hidden flex items-center justify-center p-4 font-sans text-white">
       {/* Ambient Background Glows */}
       <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-cyan-600/20 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-blue-600/20 rounded-full blur-[120px] pointer-events-none" />

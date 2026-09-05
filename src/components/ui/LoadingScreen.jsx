@@ -1,6 +1,6 @@
 export default function LoadingScreen({ message = "Setting up your meeting..." }) {
   return (
-    <div className="h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-black flex items-center justify-center">
+    <div className="h-[100dvh] bg-gradient-to-br from-slate-950 via-slate-900 to-black flex items-center justify-center">
       <div className="text-center">
         <div className="relative w-20 h-20 mx-auto mb-6">
           <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 animate-pulse" />

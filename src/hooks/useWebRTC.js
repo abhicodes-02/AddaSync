@@ -13,10 +13,20 @@ const ICE_SERVERS = {
 
 const getLocalUid = (roomId) => {
   const key = `meetflow_uid_${roomId}`;
-  let uid = localStorage.getItem(key);
+  let uid = null;
+  try {
+    uid = localStorage.getItem(key);
+  } catch (e) {
+    // Ignore
+  }
+  
   if (!uid) {
     uid = Math.random().toString(36).substring(2, 12);
-    localStorage.setItem(key, uid);
+    try {
+      localStorage.setItem(key, uid);
+    } catch (e) {
+      // Ignore
+    }
   }
   return uid;
 };
@@ -30,6 +40,7 @@ export default function useWebRTC(roomId, userName) {
   const [localStream, setLocalStream] = useState(null);
   const [remoteStreams, setRemoteStreams] = useState(new Map());
   const [participantNames, setParticipantNames] = useState(new Map());
+  const [participantStates, setParticipantStates] = useState(new Map());
   const [connectionState, setConnectionState] = useState("new");
   const [error, setError] = useState(null);
   
@@ -116,24 +127,34 @@ export default function useWebRTC(roomId, userName) {
     return pc;
   };
 
-  const startWebRTC = async (uid) => {
-    const stream = await navigator.mediaDevices.getUserMedia({ 
-      video: { width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 24 } }, 
-      audio: true 
-    });
-    localStreamRef.current = stream;
-    setLocalStream(stream);
-
+  const startWebRTC = async (uid, activeName) => {
+    // Media is already captured in start() for iOS user-gesture compliance
     const myPartRef = doc(db, "calls", roomId, "participants", uid);
-    await setDoc(myPartRef, { joinedAt: Date.now(), userName: userName, isSharingScreen: false });
+    await setDoc(myPartRef, { 
+      joinedAt: Date.now(), 
+      userName: activeName, 
+      isSharingScreen: false,
+      isMuted: false,
+      isCameraOff: false
+    });
 
     const handleScreenShareStatus = async (e) => {
-      try {
-         await updateDoc(myPartRef, { isSharingScreen: e.detail });
-      } catch (err) {}
+      try { await updateDoc(myPartRef, { isSharingScreen: e.detail }); } catch (err) {}
+    };
+    const handleMicStatus = async (e) => {
+      try { await updateDoc(myPartRef, { isMuted: e.detail }); } catch (err) {}
+    };
+    const handleCameraStatus = async (e) => {
+      try { await updateDoc(myPartRef, { isCameraOff: e.detail }); } catch (err) {}
     };
     window.addEventListener('screenshare-status', handleScreenShareStatus);
-    unsubscribers.current.push(() => window.removeEventListener('screenshare-status', handleScreenShareStatus));
+    window.addEventListener('mic-status', handleMicStatus);
+    window.addEventListener('camera-status', handleCameraStatus);
+    unsubscribers.current.push(() => {
+      window.removeEventListener('screenshare-status', handleScreenShareStatus);
+      window.removeEventListener('mic-status', handleMicStatus);
+      window.removeEventListener('camera-status', handleCameraStatus);
+    });
 
     const offersRef = collection(myPartRef, "offers");
     const unsubOffers = onSnapshot(offersRef, (snap) => {
@@ -194,6 +215,12 @@ export default function useWebRTC(roomId, userName) {
                  return next;
                });
                
+               setParticipantStates(prev => {
+                 const next = new Map(prev);
+                 next.set(targetUid, { isMuted: !!data.isMuted, isCameraOff: !!data.isCameraOff });
+                 return next;
+               });
+               
                // Dispatch screen share status for VideoGrid layout pinning
                window.dispatchEvent(new CustomEvent('remote-screen-status', {
                   detail: { uid: targetUid, isSharingScreen: !!data.isSharingScreen }
@@ -227,9 +254,60 @@ export default function useWebRTC(roomId, userName) {
     setConnectionState("connected");
   };
 
-  const start = useCallback(async () => {
+  const [facingMode, setFacingMode] = useState("user");
+
+  const switchCamera = useCallback(async () => {
+    if (!localStreamRef.current) return;
+    try {
+      const newMode = facingMode === "user" ? "environment" : "user";
+      const newStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: newMode, width: { ideal: 640 }, height: { ideal: 480 } },
+        audio: false // keep existing audio
+      });
+      const newVideoTrack = newStream.getVideoTracks()[0];
+      
+      // Stop old video track
+      const oldVideoTrack = localStreamRef.current.getVideoTracks()[0];
+      if (oldVideoTrack) {
+        localStreamRef.current.removeTrack(oldVideoTrack);
+        oldVideoTrack.stop();
+      }
+      
+      // Add new video track
+      localStreamRef.current.addTrack(newVideoTrack);
+      
+      // Update peers
+      peersRef.current.forEach(pc => {
+        const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
+        if (sender) sender.replaceTrack(newVideoTrack);
+      });
+      
+      setLocalStream(new MediaStream(localStreamRef.current.getTracks()));
+      setFacingMode(newMode);
+    } catch (err) {
+      console.error("Error switching camera:", err);
+    }
+  }, [facingMode]);
+
+  const start = useCallback(async (overrideName) => {
+    const activeName = overrideName || userName;
     try {
       setConnectionState("connecting");
+
+      // 1. CAPTURE MEDIA IMMEDIATELY (iOS strict user-gesture requirement)
+      if (!localStreamRef.current) {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+           throw new Error("unsupported_browser");
+        }
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } }, 
+          audio: true 
+        });
+        localStreamRef.current = stream;
+        setLocalStream(stream);
+      }
+
+      // 2. NOW DO FIREBASE NETWORK CALLS
       const uid = getLocalUid(roomId);
       myUid.current = uid;
 
@@ -251,7 +329,7 @@ export default function useWebRTC(roomId, userName) {
          if (!allowedDoc.exists()) {
              setConnectionState("knocking");
              const knockRef = doc(db, "calls", roomId, "knockers", uid);
-             await setDoc(knockRef, { userName, status: "waiting", timestamp: Date.now() });
+             await setDoc(knockRef, { userName: activeName, status: "waiting", timestamp: Date.now() });
 
              return new Promise((resolve, reject) => {
                  const unsub = onSnapshot(knockRef, async (snap) => {
@@ -262,7 +340,7 @@ export default function useWebRTC(roomId, userName) {
                              await setDoc(doc(db, "calls", roomId, "allowedUsers", uid), { admittedAt: Date.now() });
                              await deleteDoc(knockRef);
                              setConnectionState("connecting");
-                             await startWebRTC(uid);
+                             await startWebRTC(uid, activeName);
                              resolve(true);
                          } else if (status === "denied") {
                              unsub();
@@ -276,7 +354,7 @@ export default function useWebRTC(roomId, userName) {
              });
          } else {
              // Already admitted in a previous session
-             await startWebRTC(uid);
+             await startWebRTC(uid, activeName);
          }
       } else {
          // Host: Listen for knockers
@@ -292,12 +370,16 @@ export default function useWebRTC(roomId, userName) {
          });
          unsubscribers.current.push(unsubKnockers);
 
-         await startWebRTC(uid);
+         await startWebRTC(uid, activeName);
       }
     } catch (err) {
        if (err.message !== "denied") {
           console.error("WebRTC Error:", err);
-          setError("Failed to start video call. Please allow camera and mic permissions.");
+          if (err.message === "unsupported_browser") {
+             setError("Your browser does not support camera access. If you are using an in-app browser (like Instagram or Facebook), please open this link in Safari or Chrome.");
+          } else {
+             setError("Failed to start video call. Please allow camera and mic permissions.");
+          }
           setConnectionState("failed");
        }
     }
@@ -314,8 +396,10 @@ export default function useWebRTC(roomId, userName) {
 
   return {
     localStream,
+    setLocalStream,
     remoteStreams,
     participantNames,
+    participantStates,
     connectionState,
     error,
     peersRef,
@@ -324,6 +408,7 @@ export default function useWebRTC(roomId, userName) {
     pendingKnockers,
     resolveKnock,
     start,
-    cleanup
+    cleanup,
+    switchCamera
   };
 }

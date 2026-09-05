@@ -1,113 +1,40 @@
-# MeetFlow 🎥
+# MeetFlow
 
-A modern peer-to-peer video conferencing app built with **React 19**, **WebRTC**, and **Firebase Firestore** for signaling.
+MeetFlow is a modern, decentralized video conferencing web application built with React, Vite, and Firebase. It leverages WebRTC for peer-to-peer mesh networking, offering a highly responsive, low-latency communication experience without the need for a central media server.
 
 ## Features
 
-- 📹 **HD Video & Audio** — Real-time peer-to-peer connection via WebRTC
-- 🎤 **Mic & Camera Controls** — Toggle with buttons or keyboard shortcuts (`M` / `V`)
-- 🖥️ **Screen Sharing** — Share your screen with one click
-- 💬 **Real-time Chat** — In-call messaging with sender names and timestamps
-- 🖼️ **Picture-in-Picture** — Auto-PiP when switching tabs
-- 📋 **Room ID Sharing** — Copy room ID to clipboard with toast confirmation
-- 📱 **Responsive Design** — Full mobile support with floating local video overlay
-- ⚡ **Fast Builds** — Powered by Vite with instant HMR
+- **Mesh WebRTC Architecture**: Direct peer-to-peer audio and video connections for up to 5-6 participants per room.
+- **Host & Waiting Room**: The first person to join a room automatically becomes the Host. Subsequent guests enter a "Knocking" state and must be admitted by the Host before connecting to the mesh.
+- **Discord-Style Presentation Layout**: When a user shares their screen, the UI dynamically transforms. The presentation takes the cinematic main stage, while all participant cameras (including the local user) are moved into a neat, scrollable horizontal row at the bottom.
+- **System Audio Mixing**: Utilizes the Web Audio API to seamlessly mix your microphone with system/movie audio when sharing a screen/tab, allowing peers to hear both simultaneously.
+- **Document Picture-in-Picture**: Supports the modern Document PiP API, allowing you to pop out the entire video grid into a free-form, resizable window that floats above other applications.
+- **Real-time Chat**: Integrated side panel powered by Firestore for text communication.
 
 ## Tech Stack
 
-| Layer | Technology |
-| --- | --- |
-| Build Tool | [Vite](https://vitejs.dev/) |
-| UI Framework | [React 19](https://react.dev/) |
-| Routing | [React Router v7](https://reactrouter.com/) |
-| Styling | [Tailwind CSS 3](https://tailwindcss.com/) |
-| Real-time Video | [WebRTC](https://webrtc.org/) |
-| Signaling | [Firebase Firestore](https://firebase.google.com/docs/firestore) |
-| Icons | [React Icons (Feather)](https://react-icons.github.io/react-icons/) |
+- **Frontend**: React 18, Vite, Tailwind CSS
+- **Backend / Signaling**: Firebase Firestore (NoSQL realtime database)
+- **Media Protocols**: WebRTC, Web Audio API, Document Picture-in-Picture API
 
-## Getting Started
+## Local Development Setup
 
-### Prerequisites
-
-- Node.js 18+
-- A Firebase project with Firestore enabled
-
-### Setup
-
-1. **Clone the repository**
-   ```bash
-   git clone <repo-url>
-   cd meetflow
-   ```
-
-2. **Install dependencies**
+1. Clone the repository.
+2. Install dependencies:
    ```bash
    npm install
    ```
-
-3. **Configure environment variables**
-   ```bash
-   cp .env.example .env
-   ```
-   Fill in your Firebase credentials in `.env`:
-   ```
-   VITE_FIREBASE_API_KEY=your-api-key
-   VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
-   VITE_FIREBASE_PROJECT_ID=your-project-id
-   VITE_FIREBASE_STORAGE_BUCKET=your-project.firebasestorage.app
-   VITE_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
-   VITE_FIREBASE_APP_ID=your-app-id
-   ```
-
-4. **Start the dev server**
+3. Set up your Firebase project:
+   - Create a Firestore Database.
+   - Enable Firebase Hosting (optional).
+   - Copy your Firebase config into `.env` (using `VITE_FIREBASE_*` variables).
+4. Start the development server:
    ```bash
    npm run dev
    ```
 
-5. **Open** [http://localhost:3000](http://localhost:3000)
+## Documentation
 
-### Build for Production
-
-```bash
-npm run build
-npm run preview
-```
-
-## Project Structure
-
-```
-src/
-├── components/
-│   ├── room/
-│   │   ├── RoomHeader.jsx      # Header with room info & connection state
-│   │   ├── VideoGrid.jsx       # Main + local video layout
-│   │   ├── ChatPanel.jsx       # Slide-in chat with messages
-│   │   └── ControlDock.jsx     # Floating control bar with tooltips
-│   ├── ui/
-│   │   ├── Toast.jsx           # Toast notification system
-│   │   └── LoadingScreen.jsx   # Loading state with animation
-│   ├── JoinRoom.jsx            # Landing page (create/join room)
-│   └── VideoRoom.jsx           # Main room (composes hooks + components)
-├── hooks/
-│   ├── useWebRTC.js            # WebRTC peer connection & signaling
-│   ├── useMediaControls.js     # Mic, camera, screen share
-│   ├── useChat.js              # Real-time chat via Firestore
-│   └── usePictureInPicture.js  # PiP mode management
-├── firebase/
-│   └── firebase.js             # Firebase init (reads from .env)
-├── App.jsx                     # Router with lazy loading
-├── main.jsx                    # Entry point
-└── index.css                   # Tailwind + custom styles
-```
-
-## Keyboard Shortcuts
-
-| Key | Action |
-| --- | --- |
-| `M` | Toggle microphone |
-| `V` | Toggle camera |
-| `Esc` | Leave the call |
-
-## License
-
-MIT
+For a deep dive into the underlying architecture and UI/UX decisions, see the following documentation:
+- [Workflow & Architecture](./docs/WORKFLOW.md) - Explains the WebRTC signaling, waiting room lifecycle, and mesh networking logic.
+- [Design & UI Flow](./docs/DESIGN.md) - Details the component tree, responsive layout strategies, and state management hooks.

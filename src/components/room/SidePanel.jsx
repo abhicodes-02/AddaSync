@@ -1,6 +1,7 @@
+import { memo } from "react";
 import { FiX, FiSend, FiMessageCircle, FiUsers } from "react-icons/fi";
 
-export default function SidePanel({
+const SidePanel = memo(function SidePanel({
   activeTab,
   setActiveTab,
   messages,
@@ -155,5 +156,6 @@ export default function SidePanel({
       </div>
     </div>
   );
-}
+});
 
+export default SidePanel;

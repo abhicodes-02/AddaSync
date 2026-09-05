@@ -225,22 +225,21 @@ export default function useWebRTC(roomId, userName) {
                window.dispatchEvent(new CustomEvent('remote-screen-status', {
                   detail: { uid: targetUid, isSharingScreen: !!data.isSharingScreen }
                }));
-             }
-          }
-          
-          if (change.type === "added") {
-             if (targetUid !== uid && !peersRef.current.has(targetUid)) {
-                if (data.joinedAt > Date.now() - 5000) {
-                    const pc = createPeerConnection(targetUid);
-                    const offer = await pc.createOffer();
-                    await pc.setLocalDescription(offer);
 
-                    const targetOffersRef = collection(db, "calls", roomId, "participants", targetUid, "offers");
-                    await addDoc(targetOffersRef, {
-                       senderUid: uid,
-                       offer: { type: offer.type, sdp: offer.sdp }
-                    });
-                }
+               // WebRTC Connection Logic (Fixes Ghost Reconnects & Connection Glare)
+               if (!peersRef.current.has(targetUid)) {
+                   if (uid > targetUid) {
+                       const pc = createPeerConnection(targetUid);
+                       const offer = await pc.createOffer();
+                       await pc.setLocalDescription(offer);
+
+                       const targetOffersRef = collection(db, "calls", roomId, "participants", targetUid, "offers");
+                       await addDoc(targetOffersRef, {
+                          senderUid: uid,
+                          offer: { type: offer.type, sdp: offer.sdp }
+                       });
+                   }
+               }
              }
           }
           

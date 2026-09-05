@@ -9,7 +9,7 @@ export default function LoadingScreen({ message = "Setting up your meeting..." }
           </div>
         </div>
 
-        <h2 className="text-2xl font-bold text-white mb-2">MeetFlow</h2>
+        <h2 className="text-2xl font-bold text-white mb-2">AddaSync</h2>
 
         <p className="text-slate-400 mb-6">{message}</p>
 

@@ -88,7 +88,7 @@ const SidePanel = memo(function SidePanel({
                   const showHeader = m.sender !== prevSender;
 
                   return (
-                    <div key={i} className={`flex flex-col ${isMe ? "items-end" : "items-start"} ${showHeader ? "mt-4" : "mt-1.5"}`}>
+                    <div key={m.id || i} className={`flex flex-col ${isMe ? "items-end" : "items-start"} ${showHeader ? "mt-4" : "mt-1.5"}`}>
                       {showHeader && (
                         <span className="text-[11px] font-medium text-slate-400 mb-1.5 px-1">
                           {isMe ? "You" : m.sender || "Anonymous"} • {m.time ? formatTime(m.time) : ""}

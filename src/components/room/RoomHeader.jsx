@@ -29,7 +29,7 @@ const RoomHeader = memo(function RoomHeader({
   };
 
   const handleEmailShare = () => {
-    const subject = encodeURIComponent(`Join my MeetFlow Video Call`);
+    const subject = encodeURIComponent(`Join my AddaSync Video Call`);
     const body = encodeURIComponent(`I'm inviting you to a video meeting.\n\nClick this link to join directly:\n${fullUrl}\n\nOr enter the room code manually: ${roomId}`);
     
     // Explicitly open Gmail in a new tab
@@ -42,7 +42,7 @@ const RoomHeader = memo(function RoomHeader({
       {/* Mobile Top Bar (Hidden on Desktop) */}
       <div className="sm:hidden absolute top-4 left-4 right-4 z-40 flex items-center justify-between h-12 px-3 rounded-2xl backdrop-blur-2xl bg-slate-900/60 border border-white/10 shadow-2xl">
         <div className="flex items-center gap-2">
-          <img src="/logo.jpg" alt="MeetFlow" className="w-7 h-7 rounded-lg object-cover shadow-sm" />
+          <img src="/logo.jpg" alt="AddaSync Logo" className="w-7 h-7 rounded-lg object-cover shadow-sm" />
           <span className="text-xs font-semibold text-white tracking-wide truncate max-w-[90px]">{roomId}</span>
         </div>
         <div className="flex items-center gap-1">
@@ -67,10 +67,10 @@ const RoomHeader = memo(function RoomHeader({
 
       {/* Desktop Bottom Left: Info & Sharing (Hidden on Mobile) */}
       <div className="hidden sm:flex absolute bottom-8 left-6 z-40 items-center gap-4 h-12 pl-1.5 pr-5 rounded-full backdrop-blur-2xl bg-slate-900/60 border border-white/10 shadow-2xl">
-        <div className="flex items-center gap-2.5">
-          <img src="/logo.jpg" alt="MeetFlow" className="w-8 h-8 rounded-full object-cover" />
-          <span className="text-sm font-semibold text-white tracking-wide">{roomId}</span>
+        <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-500/20 to-blue-500/20 p-0.5 flex items-center justify-center shadow-lg overflow-hidden">
+          <img src="/logo.jpg" alt="AddaSync Logo" className="w-full h-full object-cover rounded-[0.6rem]" />
         </div>
+        <span className="text-white font-bold tracking-wide text-lg sm:text-xl hidden sm:block">AddaSync</span>
         <div className="w-px h-4 bg-white/10" />
         <button onClick={handleCopyLink} title="Copy direct invite link" className="flex items-center gap-1.5 text-xs font-medium text-slate-300 hover:text-white transition-colors">
           <FiCopy size={13} />

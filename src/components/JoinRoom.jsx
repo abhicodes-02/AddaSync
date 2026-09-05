@@ -8,7 +8,7 @@ export default function JoinRoom() {
   const navigate = useNavigate();
 
   const joinRoom = () => {
-    const trimmed = roomId.trim();
+    const trimmed = roomId.trim().toUpperCase();
     if (trimmed.length < 4) {
       alert("Room ID must be at least 4 characters");
       return;
@@ -34,10 +34,10 @@ export default function JoinRoom() {
         <div className="backdrop-blur-2xl bg-white/[0.02] border border-white/10 rounded-[2rem] shadow-2xl p-8 sm:p-10">
           <div className="text-center mb-10">
             <div className="w-20 h-20 mx-auto mb-6 rounded-[2rem] bg-gradient-to-tr from-cyan-500/20 to-blue-500/20 p-0.5 flex items-center justify-center shadow-[0_0_40px_rgba(6,182,212,0.15)] overflow-hidden">
-              <img src="/logo.jpg" alt="MeetFlow Logo" className="w-full h-full object-cover rounded-[1.8rem]" />
+              <img src="/logo.jpg" alt="AddaSync Logo" className="w-full h-full object-cover rounded-[1.8rem]" />
             </div>
             <h1 className="text-3xl font-bold tracking-tight text-white mb-2">
-              MeetFlow
+              AddaSync
             </h1>
             <p className="text-slate-400 text-sm">
               Premium video calling for everyone.

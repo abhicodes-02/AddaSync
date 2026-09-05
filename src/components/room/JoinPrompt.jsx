@@ -9,7 +9,7 @@ export default function JoinPrompt({ nameInput, setNameInput, handleJoin }) {
       </div>
       <div className="relative z-10 w-full max-w-sm backdrop-blur-2xl bg-white/[0.02] border border-white/10 rounded-[2rem] shadow-2xl p-8">
         <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-gradient-to-tr from-cyan-500/20 to-blue-500/20 p-0.5 flex items-center justify-center shadow-[0_0_30px_rgba(6,182,212,0.15)]">
-          <img src="/logo.jpg" alt="MeetFlow" className="w-full h-full object-cover rounded-[1rem]" />
+          <img src="/logo.jpg" alt="AddaSync" className="w-full h-full object-cover rounded-[1rem]" />
         </div>
         <h2 className="text-2xl font-bold text-white mb-2 text-center">What's your name?</h2>
         <p className="text-slate-400 text-sm mb-6 text-center">Enter your name to join the room.</p>

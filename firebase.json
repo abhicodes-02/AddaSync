@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "site": "meetflow",
+    "site": "addasync",
     "public": "dist",
     "ignore": [
       "firebase.json",

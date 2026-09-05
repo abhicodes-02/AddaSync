@@ -31,3 +31,4 @@ This document contains a list of highly unique, non-traditional features planned
 - **Concept:** Instead of replacing the video feed with the screen share, the user's camera feed becomes a small circular overlay on top of their screen share (like a Twitch streamer).
 - **Tech:** Drawing the screen share and camera tracks onto a single `<canvas>` and capturing the stream via `canvas.captureStream()`.
 - **Why it's unique:** Keeps the presenter visible in context with their presentation, avoiding the "disembodied voice" effect of Google Meet.
+

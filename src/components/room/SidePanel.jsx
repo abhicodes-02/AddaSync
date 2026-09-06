@@ -8,7 +8,7 @@ const SidePanel = memo(function SidePanel({
   msg,
   setMsg,
   sendMessage,
-  messagesEndRef,
+  messagesStartRef,
   userName,
   participantNames
 }) {
@@ -66,13 +66,13 @@ const SidePanel = memo(function SidePanel({
         </div>
       </div>
 
-      {/* Content Area */}
       <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin flex flex-col">
         {activeTab === "chat" ? (
           <>
-            <div className="flex-1 p-4 space-y-4">
+            <div className="flex-1 p-4 space-y-4 flex flex-col">
+              <div ref={messagesStartRef} />
               {messages.length === 0 ? (
-                <div className="h-full flex flex-col items-center justify-center text-slate-500 gap-3">
+                <div className="h-full flex flex-col items-center justify-center text-slate-500 gap-3 mt-10">
                   <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center">
                     <FiMessageCircle size={20} className="text-slate-400" />
                   </div>
@@ -84,8 +84,8 @@ const SidePanel = memo(function SidePanel({
               ) : (
                 messages.map((m, i) => {
                   const isMe = m.sender === userName;
-                  const prevSender = i > 0 ? messages[i - 1].sender : null;
-                  const showHeader = m.sender !== prevSender;
+                  const newerMsgSender = i > 0 ? messages[i - 1].sender : null;
+                  const showHeader = m.sender !== newerMsgSender;
 
                   return (
                     <div key={m.id || i} className={`flex flex-col ${isMe ? "items-end" : "items-start"} ${showHeader ? "mt-4" : "mt-1.5"}`}>
@@ -107,7 +107,6 @@ const SidePanel = memo(function SidePanel({
                   );
                 })
               )}
-              <div ref={messagesEndRef} />
             </div>
 
             {/* Chat Input */}

@@ -11,13 +11,13 @@ import {
 export default function useChat(roomId, userName) {
   const [messages, setMessages] = useState([]);
   const [msg, setMsg] = useState("");
-  const messagesEndRef = useRef(null);
+  const messagesStartRef = useRef(null);
 
   const prevCountRef = useRef(0);
 
   useEffect(() => {
     const chatRef = collection(db, "calls", roomId, "chat");
-    const q = query(chatRef, orderBy("time"));
+    const q = query(chatRef, orderBy("time", "desc"));
 
     const unsub = onSnapshot(q, (snap) => {
       const newMessages = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
@@ -41,7 +41,7 @@ export default function useChat(roomId, userName) {
   }, [roomId]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    messagesStartRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   const sendMessage = useCallback(async () => {
@@ -57,5 +57,5 @@ export default function useChat(roomId, userName) {
     setMsg("");
   }, [msg, roomId, userName]);
 
-  return { messages, msg, setMsg, sendMessage, messagesEndRef };
+  return { messages, msg, setMsg, sendMessage, messagesStartRef };
 }

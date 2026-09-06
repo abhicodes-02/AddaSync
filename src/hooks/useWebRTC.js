@@ -47,12 +47,14 @@ export default function useWebRTC(roomId, userName) {
   // Host & Knocking State
   const [isHost, setIsHost] = useState(false);
   const [pendingKnockers, setPendingKnockers] = useState([]);
+  const remoteJoinedAt = useRef(new Map());
 
   const removePeer = (uid) => {
      if (peersRef.current.has(uid)) {
        peersRef.current.get(uid).close();
        peersRef.current.delete(uid);
      }
+     remoteJoinedAt.current.delete(uid);
      setRemoteStreams(prev => {
        const next = new Map(prev);
        next.delete(uid);
@@ -71,6 +73,7 @@ export default function useWebRTC(roomId, userName) {
 
     peersRef.current.forEach(pc => pc.close());
     peersRef.current.clear();
+    remoteJoinedAt.current.clear();
 
     localStreamRef.current?.getTracks().forEach((t) => t.stop());
     localStreamRef.current = null;
@@ -128,6 +131,18 @@ export default function useWebRTC(roomId, userName) {
   };
 
   const startWebRTC = async (uid, activeName) => {
+    // 0. CLEANUP STALE DATA FROM PREVIOUS SESSIONS
+    try {
+       const colsToClear = ["offers", "answers", "candidates"];
+       for (const col of colsToClear) {
+          const snap = await getDocs(collection(db, "calls", roomId, "participants", uid, col));
+          const deletes = snap.docs.map(d => deleteDoc(d.ref));
+          await Promise.all(deletes);
+       }
+    } catch(e) {
+       console.warn("Pre-flight cleanup failed", e);
+    }
+
     // Media is already captured in start() for iOS user-gesture compliance
     const myPartRef = doc(db, "calls", roomId, "participants", uid);
     await setDoc(myPartRef, { 
@@ -209,6 +224,14 @@ export default function useWebRTC(roomId, userName) {
           
           if (change.type === "added" || change.type === "modified") {
              if (targetUid !== uid) {
+               // Detect Ghost Reconnects (If peer refreshed without sending removed event)
+               const existingJoinedAt = remoteJoinedAt.current.get(targetUid) || 0;
+               const newJoinedAt = data.joinedAt || 0;
+               if (newJoinedAt > existingJoinedAt) {
+                   removePeer(targetUid);
+                   remoteJoinedAt.current.set(targetUid, newJoinedAt);
+               }
+
                setParticipantNames(prev => {
                  const next = new Map(prev);
                  next.set(targetUid, data.userName || "Participant");

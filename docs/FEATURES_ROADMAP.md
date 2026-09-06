@@ -28,3 +28,12 @@ This document contains a list of highly unique, non-traditional features planned
 - **Tech:** Drawing the screen share and camera tracks onto a single `<canvas>` and capturing the stream via `canvas.captureStream()`.
 - **Why it's unique:** Keeps the presenter visible in context with their presentation, avoiding the "disembodied voice" effect of Google Meet.
 
+## 7. Host-Specific Special Activities (Director Mode) 👑
+- **Concept:** Special "God-mode" controls only available to the room creator. Features include:
+  - **"Spotlight / Stage Director":** Host can drag-and-drop participants into the main view, forcing everyone's screen to focus on that specific person (like a live TV director).
+  - **"Change Room Vibe":** Host can instantly change the room's CSS theme (e.g., Neon Cyberpunk, Cozy Cafe, Horror Dark Mode) and background ambient music for *everyone* at once.
+  - **"Focus Mode (Hard Mute)":** One button to silence everyone and force the layout to only show the host, complete with a dramatic "Shhh" animation.
+- **Tech:** WebRTC Data Channels broadcasting `admin-command` events to all peers. Firebase Firestore can sync the "Room State" (like current theme or spotlighted user).
+- **Why it's unique:** Turns the host into a DJ/Director of the room, making virtual hangouts much more dynamic and entertaining than standard meetings.
+- **Forced Leave Participants:** Host can freely have the power to remove any participant from the room if necessary.
+

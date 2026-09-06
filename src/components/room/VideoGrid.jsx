@@ -4,6 +4,24 @@ import { FiMicOff, FiVideoOff } from "react-icons/fi";
 
 function RemoteVideo({ stream, isConnected, name, isThumbnail, hideName, isMuted, isCameraOff }) {
   const videoRef = useRef(null);
+  const [bubble, setBubble] = useState(null);
+  const bubbleTimerRef = useRef(null);
+
+  useEffect(() => {
+    const handleBubble = (e) => {
+      const { sender, text, id } = e.detail;
+      if (sender === name) {
+        if (bubbleTimerRef.current) clearTimeout(bubbleTimerRef.current);
+        setBubble({ text, id });
+        bubbleTimerRef.current = setTimeout(() => setBubble(null), 6200);
+      }
+    };
+    window.addEventListener("chat-bubble", handleBubble);
+    return () => {
+      window.removeEventListener("chat-bubble", handleBubble);
+      if (bubbleTimerRef.current) clearTimeout(bubbleTimerRef.current);
+    };
+  }, [name]);
 
   useEffect(() => {
     if (videoRef.current && stream) {
@@ -30,6 +48,20 @@ function RemoteVideo({ stream, isConnected, name, isThumbnail, hideName, isMuted
           disablePictureInPicture
           className={`remote-video-element w-full h-full ${isThumbnail ? 'object-cover' : 'object-contain'} transition-all duration-700`}
         />
+      )}
+
+      {/* Floating Speech Bubble */}
+      {bubble && (
+        <div
+          key={bubble.id}
+          className="chat-bubble-anim absolute bottom-12 left-3 right-3 z-20 pointer-events-none"
+        >
+          <div className="inline-block max-w-full bg-black/75 backdrop-blur-md border border-white/10 text-white text-xs sm:text-sm px-3 py-2 rounded-2xl rounded-bl-sm shadow-lg leading-snug">
+            {bubble.text}
+          </div>
+          {/* Speech bubble tail */}
+          <div className="w-2.5 h-2.5 bg-black/75 border-l border-b border-white/10 rotate-[-45deg] ml-3 -mt-1.5" />
+        </div>
       )}
 
       {!hideName && name && (
@@ -65,6 +97,24 @@ const VideoGrid = memo(function VideoGrid({
   startExternalStream
 }) {
   const [remoteScreenSharers, setRemoteScreenSharers] = useState(new Set());
+  const [localBubble, setLocalBubble] = useState(null);
+  const localBubbleTimer = useRef(null);
+
+  useEffect(() => {
+    const handleBubble = (e) => {
+      const { sender, text, id } = e.detail;
+      if (sender === localName) {
+        if (localBubbleTimer.current) clearTimeout(localBubbleTimer.current);
+        setLocalBubble({ text, id });
+        localBubbleTimer.current = setTimeout(() => setLocalBubble(null), 6200);
+      }
+    };
+    window.addEventListener("chat-bubble", handleBubble);
+    return () => {
+      window.removeEventListener("chat-bubble", handleBubble);
+      if (localBubbleTimer.current) clearTimeout(localBubbleTimer.current);
+    };
+  }, [localName]);
 
   useEffect(() => {
     const handleRemoteScreen = (e) => {
@@ -308,6 +358,19 @@ const VideoGrid = memo(function VideoGrid({
           {localName ? `${localName} (You)` : "You"}
           {localIsMuted && <FiMicOff className="text-red-500" size={12} />}
         </div>
+
+        {/* Local user's floating speech bubble */}
+        {localBubble && (
+          <div
+            key={localBubble.id}
+            className="chat-bubble-anim absolute bottom-12 left-2 right-2 z-20 pointer-events-none"
+          >
+            <div className="inline-block max-w-full bg-black/75 backdrop-blur-md border border-white/10 text-white text-[10px] sm:text-xs px-2.5 py-1.5 rounded-2xl rounded-bl-sm shadow-lg leading-snug">
+              {localBubble.text}
+            </div>
+            <div className="w-2 h-2 bg-black/75 border-l border-b border-white/10 rotate-[-45deg] ml-2.5 -mt-1" />
+          </div>
+        )}
       </div>
     </div>
   );

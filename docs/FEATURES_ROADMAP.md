@@ -17,10 +17,6 @@ This document contains a list of highly unique, non-traditional features planned
 - **Tech:** WebRTC Data Channels syncing video player states (`currentTime`, `paused`) across all clients.
 - **Why it's unique:** Brings a "Netflix Party" or Discord Activity vibe directly into a browser-based meeting app.
 
-## 4. Floating 'Snapchat-style' Ephemeral Chat 💬
-- **Concept:** Chat messages appear as floating speech bubbles directly over the sender's video tile and fade away after 5-7 seconds.
-- **Tech:** CSS animations overlaid on the `RemoteVideo` component, triggered via chat messages.
-- **Why it's unique:** Eliminates the need to keep the side chat panel open, maintaining the casual "Adda" flow without cluttering the screen.
 
 ## 5. Interactive Soundboard (Adda Vibe) 🎵
 - **Concept:** A built-in panel with sound effects (Applause, Laugh Track, Crickets). Pressing a button plays the sound for everyone in the meeting.

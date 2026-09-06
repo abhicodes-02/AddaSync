@@ -13,12 +13,28 @@ export default function useChat(roomId, userName) {
   const [msg, setMsg] = useState("");
   const messagesEndRef = useRef(null);
 
+  const prevCountRef = useRef(0);
+
   useEffect(() => {
     const chatRef = collection(db, "calls", roomId, "chat");
     const q = query(chatRef, orderBy("time"));
 
     const unsub = onSnapshot(q, (snap) => {
-      setMessages(snap.docs.map((d) => d.data()));
+      const newMessages = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      setMessages(newMessages);
+
+      // Dispatch bubble event for newly added messages only
+      const added = snap.docChanges().filter(c => c.type === "added");
+      added.forEach(change => {
+        const data = change.doc.data();
+        // Only dispatch for messages that arrived after the listener started
+        if (prevCountRef.current > 0) {
+          window.dispatchEvent(new CustomEvent("chat-bubble", {
+            detail: { sender: data.sender, text: data.text, id: change.doc.id }
+          }));
+        }
+      });
+      prevCountRef.current = newMessages.length;
     });
 
     return () => unsub();

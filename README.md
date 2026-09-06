@@ -1,4 +1,4 @@
-# MeetFlow
+# AddaSync
 
 MeetFlow is a modern, decentralized video conferencing web application built with React, Vite, and Firebase. It leverages WebRTC for peer-to-peer mesh networking, offering a highly responsive, low-latency communication experience without the need for a central media server.
 

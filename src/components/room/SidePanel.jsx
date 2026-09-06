@@ -113,6 +113,8 @@ const SidePanel = memo(function SidePanel({
             <div className="shrink-0 p-4 bg-white/[0.01] border-t border-white/5 pb-safe mt-auto">
               <div className="flex gap-2 items-end bg-black/40 rounded-[1.25rem] border border-white/10 p-1.5 focus-within:border-cyan-500/50 focus-within:ring-1 focus-within:ring-cyan-500/50 transition-all">
                 <input
+                  id="chatMessage"
+                  name="chatMessage"
                   value={msg}
                   onChange={(e) => setMsg(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && sendMessage()}
@@ -121,6 +123,7 @@ const SidePanel = memo(function SidePanel({
                     flex-1 bg-transparent px-3 py-2 outline-none
                     text-sm text-white placeholder:text-slate-500
                   "
+                  autoComplete="off"
                 />
                 <button
                   onClick={sendMessage}

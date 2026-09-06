@@ -15,6 +15,8 @@ export default function JoinPrompt({ nameInput, setNameInput, handleJoin }) {
         <p className="text-slate-400 text-sm mb-6 text-center">Enter your name to join the room.</p>
         <div className="relative group mb-6">
           <input
+            id="nameInput"
+            name="nameInput"
             type="text"
             value={nameInput}
             onChange={(e) => setNameInput(e.target.value)}
@@ -22,6 +24,7 @@ export default function JoinPrompt({ nameInput, setNameInput, handleJoin }) {
             placeholder="e.g. John Doe"
             className="w-full bg-black/40 text-white placeholder-slate-500 px-5 py-4 rounded-xl border border-white/10 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/50 transition-all duration-300"
             autoFocus
+            autoComplete="name"
           />
         </div>
         <button

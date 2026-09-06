@@ -50,11 +50,14 @@ export default function JoinRoom() {
                 Your Name
               </label>
               <input
+                id="userName"
+                name="userName"
                 type="text"
                 value={userName}
                 onChange={(e) => setUserName(e.target.value)}
                 placeholder="e.g. Alex"
                 className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3.5 text-white placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 transition-all"
+                autoComplete="name"
               />
             </div>
 
@@ -63,6 +66,8 @@ export default function JoinRoom() {
                 Room Code
               </label>
               <input
+                id="roomId"
+                name="roomId"
                 type="text"
                 value={roomId}
                 onChange={(e) => setRoomId(e.target.value.toUpperCase())}

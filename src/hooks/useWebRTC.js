@@ -323,7 +323,11 @@ export default function useWebRTC(roomId, userName) {
         }
         const stream = await navigator.mediaDevices.getUserMedia({ 
           video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } }, 
-          audio: true 
+          audio: {
+            noiseSuppression: true,
+            echoCancellation: true,
+            autoGainControl: true,
+          }
         });
         localStreamRef.current = stream;
         setLocalStream(stream);

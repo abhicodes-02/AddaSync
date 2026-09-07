@@ -69,14 +69,16 @@ body,
 ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
 
-/* Chat Bubble: pop in, hold, then fade out */
+/* Chat Bubble: anime pop in, hold, then float up fade out */
 @keyframes bubblePop {
-  0%   { opacity: 0; transform: translateY(8px) scale(0.92); }
-  10%  { opacity: 1; transform: translateY(0) scale(1); }
-  75%  { opacity: 1; transform: translateY(0) scale(1); }
-  100% { opacity: 0; transform: translateY(-6px) scale(0.96); }
+  0%   { opacity: 0; transform: translateY(20px) scale(0.5) rotate(-5deg); }
+  8%   { opacity: 1; transform: translateY(-5px) scale(1.1) rotate(3deg); }
+  14%  { opacity: 1; transform: translateY(0) scale(1) rotate(0); }
+  85%  { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-15px) scale(0.9); filter: blur(4px); }
 }
 
 .chat-bubble-anim {
-  animation: bubblePop 6s ease-in-out forwards;
+  animation: bubblePop 6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  transform-origin: bottom left;
 }

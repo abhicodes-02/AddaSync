@@ -56,7 +56,7 @@ function RemoteVideo({ stream, isConnected, name, isThumbnail, hideName, isMuted
           key={bubble.id}
           className="chat-bubble-anim absolute bottom-12 left-3 right-3 z-20 pointer-events-none"
         >
-          <div className="inline-block max-w-full bg-black/75 backdrop-blur-md border border-white/10 text-white text-xs sm:text-sm px-3 py-2 rounded-2xl rounded-bl-sm shadow-lg leading-snug">
+          <div className="inline-block max-w-full bg-white/90 border border-cyan-400 text-black text-sm sm:text-base px-4 py-3 rounded-2xl rounded-bl-sm shadow-lg leading-snug">
             {bubble.text}
           </div>
           {/* Speech bubble tail */}

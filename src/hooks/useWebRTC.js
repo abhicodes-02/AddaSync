@@ -3,6 +3,7 @@ import { db } from "../firebase/firebase";
 import {
   doc, setDoc, deleteDoc, onSnapshot, collection, addDoc, getDocs, getDoc, updateDoc
 } from "firebase/firestore";
+import { createNoiseSuppressedStream } from "../utils/audioProcessor";
 
 const ICE_SERVERS = {
   iceServers: [
@@ -48,6 +49,7 @@ export default function useWebRTC(roomId, userName) {
   const [isHost, setIsHost] = useState(false);
   const [pendingKnockers, setPendingKnockers] = useState([]);
   const remoteJoinedAt = useRef(new Map());
+  const audioCleanupRef = useRef(null);
 
   const removePeer = (uid) => {
      if (peersRef.current.has(uid)) {
@@ -77,6 +79,10 @@ export default function useWebRTC(roomId, userName) {
 
     localStreamRef.current?.getTracks().forEach((t) => t.stop());
     localStreamRef.current = null;
+    if (audioCleanupRef.current) {
+      audioCleanupRef.current();
+      audioCleanupRef.current = null;
+    }
     setLocalStream(null);
     setRemoteStreams(new Map());
     setParticipantNames(new Map());
@@ -321,7 +327,7 @@ export default function useWebRTC(roomId, userName) {
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
            throw new Error("unsupported_browser");
         }
-        const stream = await navigator.mediaDevices.getUserMedia({ 
+        const rawStream = await navigator.mediaDevices.getUserMedia({ 
           video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } }, 
           audio: {
             noiseSuppression: true,
@@ -329,8 +335,13 @@ export default function useWebRTC(roomId, userName) {
             autoGainControl: true,
           }
         });
-        localStreamRef.current = stream;
-        setLocalStream(stream);
+
+        // Advanced noise suppression pipeline (Noise Gate + Filters + Compressor)
+        const { processedStream, cleanup: audioCleanup } = await createNoiseSuppressedStream(rawStream);
+        audioCleanupRef.current = audioCleanup;
+
+        localStreamRef.current = processedStream;
+        setLocalStream(processedStream);
       }
 
       // 2. NOW DO FIREBASE NETWORK CALLS

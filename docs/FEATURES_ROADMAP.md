@@ -41,8 +41,6 @@ The current Video Conferencing feature will become a robust built-in tool within
 ### 3. "True Sync" Watch Party (YouTube/Spotify Sync) 🍿
 - **Concept:** Paste a YouTube link in the chat to open a floating video player that synchronizes perfectly for everyone in the room.
 
-### 4. Interactive Soundboard (Adda Vibe) 🎵
-- **Concept:** A built-in panel with sound effects (Applause, Laugh Track, Crickets).
 
 ### 5. Picture-in-Picture (PiP) Screen Sharing (Face + Screen overlay) 🖼️
 - **Concept:** Instead of replacing the video feed with the screen share, the user's camera feed becomes a small circular overlay on top of their screen share (like a Twitch streamer).

@@ -58,6 +58,13 @@ export default function useWebRTC(roomId, userName) {
   const [participantStates, setParticipantStates] = useState(new Map());
   const [connectionState, setConnectionState] = useState("new");
   const [error, setError] = useState(null);
+  
+  // Room State (Director Mode)
+  const [roomState, setRoomState] = useState({
+    spotlightUid: null,
+    theme: "default",
+    focusMode: false,
+  });
 
   const [isHost, setIsHost] = useState(false);
   const [pendingKnockers, setPendingKnockers] = useState([]);
@@ -341,6 +348,22 @@ export default function useWebRTC(roomId, userName) {
     });
 
     // ---------------------------------------------------------
+    // ROOM SETTINGS (Director Mode)
+    // ---------------------------------------------------------
+    const roomDocRef = doc(db, "calls", roomId);
+    const unsubRoom = onSnapshot(roomDocRef, (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        setRoomState({
+          spotlightUid: data.spotlightUid || null,
+          theme: data.theme || "default",
+          focusMode: data.focusMode || false,
+        });
+      }
+    });
+    unsubscribers.current.push(unsubRoom);
+
+    // ---------------------------------------------------------
     // OFFERS
     // ---------------------------------------------------------
     const offersRef = collection(myPartRef, "offers");
@@ -473,7 +496,13 @@ export default function useWebRTC(roomId, userName) {
       snap.docChanges().forEach(async change => {
         const targetUid = change.doc.id;
 
-        if (targetUid === uid) return;
+        if (targetUid === uid) {
+          if (change.type === "removed") {
+             setError("You have been removed from the meeting by the host.");
+             cleanup();
+          }
+          return;
+        }
 
         if (change.type === "removed") {
           removePeer(targetUid);
@@ -984,6 +1013,27 @@ export default function useWebRTC(roomId, userName) {
     [roomId]
   );
 
+  // Director Mode Actions
+  const adminActions = {
+    setSpotlight: async (uid) => {
+      if (!isHost) return;
+      await updateDoc(doc(db, "calls", roomId), { spotlightUid: uid });
+    },
+    setTheme: async (theme) => {
+      if (!isHost) return;
+      await updateDoc(doc(db, "calls", roomId), { theme });
+    },
+    toggleFocusMode: async () => {
+      if (!isHost) return;
+      await updateDoc(doc(db, "calls", roomId), { focusMode: !roomState.focusMode });
+    },
+    kickParticipant: async (uid) => {
+      if (!isHost) return;
+      // Delete participant's document, which triggers their kick logic
+      await deleteDoc(doc(db, "calls", roomId, "participants", uid));
+    }
+  };
+
   return {
     localStream,
     setLocalStream,
@@ -999,6 +1049,8 @@ export default function useWebRTC(roomId, userName) {
     resolveKnock,
     start,
     cleanup,
-    switchCamera
+    switchCamera,
+    roomState,
+    adminActions,
   };
 }

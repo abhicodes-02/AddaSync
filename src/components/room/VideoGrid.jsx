@@ -203,7 +203,8 @@ const VideoGrid = memo(function VideoGrid({
   localVideoRef,
   isScreenSharing,
   mediaFileUrl,
-  startExternalStream
+  startExternalStream,
+  roomState
 }) {
   const [
     remoteScreenSharers,
@@ -332,8 +333,7 @@ const VideoGrid = memo(function VideoGrid({
   }, [remoteStreams]);
 
   const pinnedUid =
-    Array.from(remoteScreenSharers)[0] ||
-    null;
+    roomState?.spotlightUid || Array.from(remoteScreenSharers)[0] || null;
 
   const isSomeonePresenting =
     !!pinnedUid ||
@@ -408,10 +408,8 @@ const VideoGrid = memo(function VideoGrid({
               <div className="absolute top-4 left-4 z-20 flex items-center gap-2 sm:gap-3 pointer-events-none">
                 <div className="bg-black/70 backdrop-blur-md px-3 py-1.5 rounded-lg text-white text-[13px] font-medium border border-white/10 flex items-center gap-2 shadow-xl">
                   <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-
-                  {participantNames?.get(
-                    pinnedUid
-                  ) || "Participant"}'s Screen
+                  {pinnedUid === "local" ? (localName || "You") : (participantNames?.get(pinnedUid) || "Participant")}
+                  {remoteScreenSharers.has(pinnedUid) ? "'s Screen" : " (Spotlight)"}
                 </div>
 
                 <div className="bg-red-600 text-white text-[10px] font-bold tracking-wider px-2 py-1 rounded shadow-lg">
@@ -419,20 +417,25 @@ const VideoGrid = memo(function VideoGrid({
                 </div>
               </div>
 
-              <RemoteVideo
-                stream={remoteStreams.get(
-                  pinnedUid
-                )}
-                isConnected={isConnected}
-                name=""
-                hideName={true}
-                isMuted={
-                  participantStates?.get(
-                    pinnedUid
-                  )?.isMuted
-                }
-                isCameraOff={false}
-              />
+              {pinnedUid === "local" ? (
+                <video
+                  ref={localVideoRef}
+                  autoPlay
+                  muted
+                  playsInline
+                  disablePictureInPicture
+                  className="w-full h-full object-contain scale-x-[-1]"
+                />
+              ) : (
+                <RemoteVideo
+                  stream={remoteStreams.get(pinnedUid)}
+                  isConnected={isConnected}
+                  name=""
+                  hideName={true}
+                  isMuted={participantStates?.get(pinnedUid)?.isMuted}
+                  isCameraOff={false}
+                />
+              )}
             </div>
 
           ) : mediaFileUrl ? (
@@ -514,6 +517,7 @@ const VideoGrid = memo(function VideoGrid({
         <div className="w-full shrink-0 flex flex-row items-start justify-center gap-3 px-4 pt-2 pb-24 sm:pb-28 overflow-x-auto">
 
           {/* Local participant */}
+          {pinnedUid !== "local" && (
           <div className="w-32 sm:w-40 h-20 sm:h-24 shrink-0 relative rounded-xl overflow-hidden ring-1 ring-white/10 shadow-xl bg-slate-900 group flex items-center justify-center">
 
             {localIsCameraOff ? (
@@ -554,6 +558,7 @@ const VideoGrid = memo(function VideoGrid({
               )}
             </div>
           </div>
+          )}
 
           {/* Remote Camera Tiles */}
           {streamsEntries.map(

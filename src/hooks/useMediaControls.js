@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from "react";
+import { createPiPStream } from "../utils/streamCompositor";
 
 export default function useMediaControls(localStreamRef, peersRef, setLocalStream) {
   const [isMuted, setIsMuted] = useState(false);
@@ -60,7 +61,11 @@ export default function useMediaControls(localStreamRef, peersRef, setLocalStrea
        audioCtx.close().catch(console.error);
     }
     
-    shareContext.current = { audioCtx: null, originalVideoTrack: null, originalAudioTrack: null, sharedVideoTrack: null };
+    if (shareContext.current.pipCleanup) {
+       shareContext.current.pipCleanup();
+    }
+    
+    shareContext.current = { audioCtx: null, originalVideoTrack: null, originalAudioTrack: null, sharedVideoTrack: null, pipCleanup: null };
     setIsScreenSharing(false);
     window.dispatchEvent(new CustomEvent('screenshare-status', { detail: false }));
   }, [peersRef, localStreamRef, setLocalStream]);
@@ -94,6 +99,7 @@ export default function useMediaControls(localStreamRef, peersRef, setLocalStrea
 
       // Save context for cleanup
       shareContext.current = {
+         ...shareContext.current,
          audioCtx,
          originalVideoTrack: currentCameraTrack,
          originalAudioTrack: currentMicTrack,
@@ -144,8 +150,24 @@ export default function useMediaControls(localStreamRef, peersRef, setLocalStrea
         video: { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } },
         audio: true
       });
-      // For screen share, we DO replace the local video track so they can see what they are sharing in the thumbnail
-      startExternalStream(screenStream, true);
+      
+      const currentStream = localStreamRef.current;
+      if (currentStream) {
+        const { pipStream, cleanup } = await createPiPStream(screenStream, currentStream);
+        
+        // Save cleanup to context
+        shareContext.current.pipCleanup = cleanup;
+        
+        // For screen share, we replace the local video track with the composite PiP
+        startExternalStream(pipStream, true);
+        
+        // Ensure cleanup runs when external track ends (user stops sharing via browser bar)
+        pipStream.getVideoTracks()[0].onended = () => {
+          stopSharing();
+        };
+      } else {
+        startExternalStream(screenStream, true);
+      }
     } catch (err) {
       console.log("Screen share cancel:", err);
     }

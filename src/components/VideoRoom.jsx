@@ -89,6 +89,8 @@ export default function VideoRoom() {
     start,
     cleanup,
     switchCamera,
+    roomState,
+    adminActions,
   } = useWebRTC(roomId, localName);
 
   const {
@@ -249,8 +251,16 @@ export default function VideoRoom() {
     return <LoadingScreen message="Connecting to secure mesh..." />;
   }
 
+  const themeBgMap = {
+    default: "bg-[#0a0a0a]",
+    cyberpunk: "bg-fuchsia-950",
+    matrix: "bg-emerald-950",
+    ocean: "bg-cyan-950"
+  };
+  const bgClass = (roomState?.theme && themeBgMap[roomState.theme]) ? themeBgMap[roomState.theme] : themeBgMap.default;
+
   return (
-    <div className="h-[100dvh] w-screen bg-[#0a0a0a] text-white flex overflow-hidden relative font-sans">
+    <div className={`h-[100dvh] w-screen ${bgClass} text-white flex overflow-hidden relative font-sans transition-colors duration-1000`}>
       
       {/* Host Knocking Notifications */}
       {isHost && pendingKnockers.length > 0 && (
@@ -305,6 +315,9 @@ export default function VideoRoom() {
         messagesStartRef={messagesStartRef}
         participantNames={participantNames}
         userName={localName}
+        isHost={isHost}
+        roomState={roomState}
+        adminActions={adminActions}
       />
 
       <div className="flex-1 relative flex flex-col min-w-0 transition-all duration-300">
@@ -322,6 +335,7 @@ export default function VideoRoom() {
           isScreenSharing={isScreenSharing}
           mediaFileUrl={mediaFileUrl}
           startExternalStream={startExternalStream}
+          roomState={roomState}
         />
 
         <ControlDock

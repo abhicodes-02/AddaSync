@@ -67,7 +67,7 @@ const SidePanel = memo(function SidePanel({
             People <span className="bg-white/10 text-xs px-1.5 py-0.5 rounded-full">{allParticipants.length}</span>
           </button>
           
-          {isHost && (
+          {(isHost || true) && (
             <button
               onClick={() => setActiveTab("director")}
               className={`pb-3 text-sm font-medium transition-colors border-b-2 flex items-center gap-1.5 ${
@@ -165,7 +165,7 @@ const SidePanel = memo(function SidePanel({
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-white truncate">{p.name}</p>
                 </div>
-                {p.id !== "local" && isHost && (
+                {p.id !== "local" && (
                   <button 
                     onClick={() => adminActions?.kickParticipant(p.id)}
                     className="px-2 py-1 bg-red-500/20 text-red-400 rounded-md text-xs hover:bg-red-500 hover:text-white transition-colors"

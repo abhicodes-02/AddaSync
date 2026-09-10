@@ -1016,19 +1016,15 @@ export default function useWebRTC(roomId, userName) {
   // Director Mode Actions
   const adminActions = {
     setSpotlight: async (uid) => {
-      if (!isHost) return;
       await updateDoc(doc(db, "calls", roomId), { spotlightUid: uid });
     },
     setTheme: async (theme) => {
-      if (!isHost) return;
       await updateDoc(doc(db, "calls", roomId), { theme });
     },
     toggleFocusMode: async () => {
-      if (!isHost) return;
       await updateDoc(doc(db, "calls", roomId), { focusMode: !roomState.focusMode });
     },
     kickParticipant: async (uid) => {
-      if (!isHost) return;
       // Delete participant's document, which triggers their kick logic
       await deleteDoc(doc(db, "calls", roomId, "participants", uid));
     }

@@ -1,317 +1,659 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+// src/hooks/useWebRTC.js
+
+import { useCallback, useRef, useState } from "react";
 import { db } from "../firebase/firebase";
 import {
-  doc, setDoc, deleteDoc, onSnapshot, collection, addDoc, getDocs, getDoc, updateDoc
+  doc,
+  setDoc,
+  deleteDoc,
+  onSnapshot,
+  collection,
+  addDoc,
+  getDocs,
+  getDoc,
+  updateDoc
 } from "firebase/firestore";
 import { createNoiseSuppressedStream } from "../utils/audioProcessor";
 
 const ICE_SERVERS = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" },
-  ],
+    { urls: "stun:stun1.l.google.com:19302" }
+  ]
 };
 
 const getLocalUid = (roomId) => {
   const key = `meetflow_uid_${roomId}`;
   let uid = null;
+
   try {
     uid = localStorage.getItem(key);
-  } catch (e) {
-    // Ignore
-  }
-  
+  } catch {}
+
   if (!uid) {
     uid = Math.random().toString(36).substring(2, 12);
+
     try {
       localStorage.setItem(key, uid);
-    } catch (e) {
-      // Ignore
-    }
+    } catch {}
   }
+
   return uid;
 };
 
 export default function useWebRTC(roomId, userName) {
   const peersRef = useRef(new Map());
   const localStreamRef = useRef(null);
+  const rawStreamRef = useRef(null);
   const myUid = useRef(null);
   const unsubscribers = useRef([]);
-  
+  const remoteJoinedAt = useRef(new Map());
+  const pendingIceRef = useRef(new Map());
+  const audioCleanupRef = useRef(null);
+  const startedRef = useRef(false);
+
   const [localStream, setLocalStream] = useState(null);
   const [remoteStreams, setRemoteStreams] = useState(new Map());
   const [participantNames, setParticipantNames] = useState(new Map());
   const [participantStates, setParticipantStates] = useState(new Map());
   const [connectionState, setConnectionState] = useState("new");
   const [error, setError] = useState(null);
-  
-  // Host & Knocking State
+
   const [isHost, setIsHost] = useState(false);
   const [pendingKnockers, setPendingKnockers] = useState([]);
-  const remoteJoinedAt = useRef(new Map());
-  const audioCleanupRef = useRef(null);
+  const [facingMode, setFacingMode] = useState("user");
 
-  const removePeer = (uid) => {
-     if (peersRef.current.has(uid)) {
-       peersRef.current.get(uid).close();
-       peersRef.current.delete(uid);
-     }
-     remoteJoinedAt.current.delete(uid);
-     setRemoteStreams(prev => {
-       const next = new Map(prev);
-       next.delete(uid);
-       return next;
-     });
-     setParticipantNames(prev => {
-       const next = new Map(prev);
-       next.delete(uid);
-       return next;
-     });
-  };
+  const removePeer = useCallback((uid) => {
+    const pc = peersRef.current.get(uid);
 
-  const cleanup = useCallback(async () => {
-    unsubscribers.current.forEach((unsub) => unsub());
-    unsubscribers.current = [];
+    if (pc) {
+      try {
+        pc.ontrack = null;
+        pc.onicecandidate = null;
+        pc.onconnectionstatechange = null;
+        pc.close();
+      } catch {}
 
-    peersRef.current.forEach(pc => pc.close());
-    peersRef.current.clear();
-    remoteJoinedAt.current.clear();
-
-    localStreamRef.current?.getTracks().forEach((t) => t.stop());
-    localStreamRef.current = null;
-    if (audioCleanupRef.current) {
-      audioCleanupRef.current();
-      audioCleanupRef.current = null;
+      peersRef.current.delete(uid);
     }
-    setLocalStream(null);
-    setRemoteStreams(new Map());
-    setParticipantNames(new Map());
+
+    pendingIceRef.current.delete(uid);
+    remoteJoinedAt.current.delete(uid);
+
+    setRemoteStreams(prev => {
+      const next = new Map(prev);
+      next.delete(uid);
+      return next;
+    });
+
+    setParticipantNames(prev => {
+      const next = new Map(prev);
+      next.delete(uid);
+      return next;
+    });
+
+    setParticipantStates(prev => {
+      const next = new Map(prev);
+      next.delete(uid);
+      return next;
+    });
+  }, []);
+
+  const queueOrAddIceCandidate = useCallback(async (uid, candidate) => {
+    const pc = peersRef.current.get(uid);
+
+    if (!pc) {
+      const list = pendingIceRef.current.get(uid) || [];
+      list.push(candidate);
+      pendingIceRef.current.set(uid, list);
+      return;
+    }
+
+    // ICE can arrive before the remote SDP. Queue it until the
+    // remote description exists.
+    if (!pc.remoteDescription) {
+      const list = pendingIceRef.current.get(uid) || [];
+      list.push(candidate);
+      pendingIceRef.current.set(uid, list);
+      return;
+    }
 
     try {
-      if (myUid.current) {
-        const myPartRef = doc(db, "calls", roomId, "participants", myUid.current);
-        await deleteDoc(myPartRef);
-      }
-    } catch (e) {
-      console.warn("Cleanup error:", e);
+      await pc.addIceCandidate(new RTCIceCandidate(candidate));
+    } catch (err) {
+      console.warn("Failed to add remote ICE candidate:", err);
     }
-  }, [roomId]);
+  }, []);
 
-  const createPeerConnection = (targetUid) => {
-    if (peersRef.current.has(targetUid)) return peersRef.current.get(targetUid);
+  const flushPendingIce = useCallback(async (uid, pc) => {
+    const list = pendingIceRef.current.get(uid) || [];
+
+    if (!list.length || !pc.remoteDescription) return;
+
+    pendingIceRef.current.delete(uid);
+
+    for (const candidate of list) {
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      } catch (err) {
+        console.warn("Failed to flush ICE candidate:", err);
+      }
+    }
+  }, []);
+
+  const createPeerConnection = useCallback((targetUid) => {
+    const existing = peersRef.current.get(targetUid);
+    if (existing) return existing;
 
     const pc = new RTCPeerConnection(ICE_SERVERS);
     peersRef.current.set(targetUid, pc);
 
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(track => {
-        pc.addTrack(track, localStreamRef.current);
+        try {
+          pc.addTrack(track, localStreamRef.current);
+        } catch (err) {
+          console.warn("Failed to add local track:", err);
+        }
       });
     }
 
     pc.ontrack = (event) => {
+      const stream = event.streams?.[0];
+
+      if (!stream) return;
+
       setRemoteStreams(prev => {
         const next = new Map(prev);
-        next.set(targetUid, event.streams[0]);
+        next.set(targetUid, stream);
         return next;
       });
     };
 
-    pc.onicecandidate = (event) => {
-      if (event.candidate) {
-         const col = collection(db, "calls", roomId, "participants", targetUid, "candidates");
-         addDoc(col, {
-            senderUid: myUid.current,
-            candidate: event.candidate.toJSON()
-         });
+    pc.onicecandidate = async (event) => {
+      if (!event.candidate || !myUid.current) return;
+
+      try {
+        const candidatesRef = collection(
+          db,
+          "calls",
+          roomId,
+          "participants",
+          targetUid,
+          "candidates"
+        );
+
+        await addDoc(candidatesRef, {
+          senderUid: myUid.current,
+          candidate: event.candidate.toJSON()
+        });
+      } catch (err) {
+        console.warn("Failed to write ICE candidate:", err);
       }
     };
 
     pc.onconnectionstatechange = () => {
-       if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
-          removePeer(targetUid);
-       }
+      if (pc.connectionState === "connected") {
+        setConnectionState("connected");
+      }
+
+      if (
+        pc.connectionState === "disconnected" ||
+        pc.connectionState === "failed" ||
+        pc.connectionState === "closed"
+      ) {
+        removePeer(targetUid);
+      }
     };
 
     return pc;
-  };
+  }, [roomId, removePeer]);
 
-  const startWebRTC = async (uid, activeName) => {
-    // 0. CLEANUP STALE DATA FROM PREVIOUS SESSIONS
-    try {
-       const colsToClear = ["offers", "answers", "candidates"];
-       for (const col of colsToClear) {
-          const snap = await getDocs(collection(db, "calls", roomId, "participants", uid, col));
-          const deletes = snap.docs.map(d => deleteDoc(d.ref));
-          await Promise.all(deletes);
-       }
-    } catch(e) {
-       console.warn("Pre-flight cleanup failed", e);
+  const cleanup = useCallback(async () => {
+    startedRef.current = false;
+
+    unsubscribers.current.forEach(unsub => {
+      try { unsub(); } catch {}
+    });
+    unsubscribers.current = [];
+
+    peersRef.current.forEach(pc => {
+      try { pc.close(); } catch {}
+    });
+    peersRef.current.clear();
+
+    pendingIceRef.current.clear();
+    remoteJoinedAt.current.clear();
+
+    // Stop the processed stream.
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(track => {
+        try { track.stop(); } catch {}
+      });
     }
 
-    // Media is already captured in start() for iOS user-gesture compliance
-    const myPartRef = doc(db, "calls", roomId, "participants", uid);
-    await setDoc(myPartRef, { 
-      joinedAt: Date.now(), 
-      userName: activeName, 
+    // Also stop the original microphone/camera stream. This is important
+    // because the Web Audio destination creates a second audio track.
+    if (rawStreamRef.current) {
+      rawStreamRef.current.getTracks().forEach(track => {
+        try { track.stop(); } catch {}
+      });
+    }
+
+    localStreamRef.current = null;
+    rawStreamRef.current = null;
+
+    if (audioCleanupRef.current) {
+      try { audioCleanupRef.current(); } catch {}
+      audioCleanupRef.current = null;
+    }
+
+    setLocalStream(null);
+    setRemoteStreams(new Map());
+    setParticipantNames(new Map());
+    setParticipantStates(new Map());
+    setPendingKnockers([]);
+    setConnectionState("new");
+
+    try {
+      if (myUid.current) {
+        const myPartRef = doc(
+          db,
+          "calls",
+          roomId,
+          "participants",
+          myUid.current
+        );
+
+        await deleteDoc(myPartRef);
+      }
+    } catch (err) {
+      console.warn("Participant cleanup error:", err);
+    }
+  }, [roomId]);
+
+  const startWebRTC = useCallback(async (uid, activeName) => {
+    // Remove only stale signaling documents belonging to this participant.
+    try {
+      for (const col of ["offers", "answers", "candidates"]) {
+        const snap = await getDocs(
+          collection(db, "calls", roomId, "participants", uid, col)
+        );
+
+        await Promise.all(snap.docs.map(item => deleteDoc(item.ref)));
+      }
+    } catch (err) {
+      console.warn("Pre-flight signaling cleanup failed:", err);
+    }
+
+    const myPartRef = doc(
+      db,
+      "calls",
+      roomId,
+      "participants",
+      uid
+    );
+
+    const joinedAt = Date.now();
+
+    await setDoc(myPartRef, {
+      joinedAt,
+      userName: activeName || "Participant",
       isSharingScreen: false,
       isMuted: false,
       isCameraOff: false
     });
 
-    const handleScreenShareStatus = async (e) => {
-      try { await updateDoc(myPartRef, { isSharingScreen: e.detail }); } catch (err) {}
+    remoteJoinedAt.current.set(uid, joinedAt);
+
+    const handleScreenShareStatus = async (event) => {
+      try {
+        await updateDoc(myPartRef, {
+          isSharingScreen: !!event.detail
+        });
+      } catch {}
     };
-    const handleMicStatus = async (e) => {
-      try { await updateDoc(myPartRef, { isMuted: e.detail }); } catch (err) {}
+
+    const handleMicStatus = async (event) => {
+      try {
+        await updateDoc(myPartRef, {
+          isMuted: !!event.detail
+        });
+      } catch {}
     };
-    const handleCameraStatus = async (e) => {
-      try { await updateDoc(myPartRef, { isCameraOff: e.detail }); } catch (err) {}
+
+    const handleCameraStatus = async (event) => {
+      try {
+        await updateDoc(myPartRef, {
+          isCameraOff: !!event.detail
+        });
+      } catch {}
     };
-    window.addEventListener('screenshare-status', handleScreenShareStatus);
-    window.addEventListener('mic-status', handleMicStatus);
-    window.addEventListener('camera-status', handleCameraStatus);
+
+    window.addEventListener("screenshare-status", handleScreenShareStatus);
+    window.addEventListener("mic-status", handleMicStatus);
+    window.addEventListener("camera-status", handleCameraStatus);
+
     unsubscribers.current.push(() => {
-      window.removeEventListener('screenshare-status', handleScreenShareStatus);
-      window.removeEventListener('mic-status', handleMicStatus);
-      window.removeEventListener('camera-status', handleCameraStatus);
+      window.removeEventListener("screenshare-status", handleScreenShareStatus);
+      window.removeEventListener("mic-status", handleMicStatus);
+      window.removeEventListener("camera-status", handleCameraStatus);
     });
 
+    // ---------------------------------------------------------
+    // OFFERS
+    // ---------------------------------------------------------
     const offersRef = collection(myPartRef, "offers");
-    const unsubOffers = onSnapshot(offersRef, (snap) => {
-      snap.docChanges().forEach(async (change) => {
-        if (change.type === "added") {
-          const data = change.doc.data();
-          const pc = createPeerConnection(data.senderUid);
-          await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+
+    const unsubOffers = onSnapshot(offersRef, snap => {
+      snap.docChanges().forEach(async change => {
+        if (change.type !== "added") return;
+
+        const data = change.doc.data();
+        const senderUid = data.senderUid;
+        if (!senderUid || senderUid === uid || !data.offer) return;
+
+        try {
+          let pc = peersRef.current.get(senderUid);
+
+          if (!pc) {
+            pc = createPeerConnection(senderUid);
+          }
+
+          // Deterministic glare handling:
+          // the lexicographically larger UID is the offer initiator.
+          // If we already made our own offer, ignore the competing offer.
+          if (
+            pc.signalingState !== "stable" &&
+            pc.signalingState !== "have-remote-offer"
+          ) {
+            if (uid > senderUid) {
+              return;
+            }
+
+            removePeer(senderUid);
+            pc = createPeerConnection(senderUid);
+          }
+
+          if (pc.signalingState !== "stable") return;
+
+          await pc.setRemoteDescription(
+            new RTCSessionDescription(data.offer)
+          );
+
+          await flushPendingIce(senderUid, pc);
+
           const answer = await pc.createAnswer();
           await pc.setLocalDescription(answer);
 
-          const targetAnswersRef = collection(db, "calls", roomId, "participants", data.senderUid, "answers");
+          const targetAnswersRef = collection(
+            db,
+            "calls",
+            roomId,
+            "participants",
+            senderUid,
+            "answers"
+          );
+
           await addDoc(targetAnswersRef, {
             senderUid: uid,
-            answer: { type: answer.type, sdp: answer.sdp }
+            answer: {
+              type: answer.type,
+              sdp: answer.sdp
+            }
           });
+        } catch (err) {
+          console.error("Offer handling failed:", err);
         }
       });
     });
 
+    // ---------------------------------------------------------
+    // ANSWERS
+    // ---------------------------------------------------------
     const answersRef = collection(myPartRef, "answers");
-    const unsubAnswers = onSnapshot(answersRef, (snap) => {
-      snap.docChanges().forEach(async (change) => {
-        if (change.type === "added") {
-          const data = change.doc.data();
-          const pc = peersRef.current.get(data.senderUid);
-          if (pc && pc.signalingState !== 'stable') {
-             await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+
+    const unsubAnswers = onSnapshot(answersRef, snap => {
+      snap.docChanges().forEach(async change => {
+        if (change.type !== "added") return;
+
+        const data = change.doc.data();
+        const senderUid = data.senderUid;
+
+        if (!senderUid || !data.answer) return;
+
+        const pc = peersRef.current.get(senderUid);
+        if (!pc) return;
+
+        try {
+          if (pc.signalingState === "have-local-offer") {
+            await pc.setRemoteDescription(
+              new RTCSessionDescription(data.answer)
+            );
+
+            await flushPendingIce(senderUid, pc);
           }
+        } catch (err) {
+          console.warn("Answer handling failed:", err);
         }
       });
     });
 
+    // ---------------------------------------------------------
+    // ICE CANDIDATES
+    // ---------------------------------------------------------
     const candidatesRef = collection(myPartRef, "candidates");
-    const unsubCandidates = onSnapshot(candidatesRef, (snap) => {
-      snap.docChanges().forEach(async (change) => {
-        if (change.type === "added") {
-          const data = change.doc.data();
-          const pc = peersRef.current.get(data.senderUid);
-          if (pc) {
-             await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+
+    const unsubCandidates = onSnapshot(candidatesRef, snap => {
+      snap.docChanges().forEach(change => {
+        if (change.type !== "added") return;
+
+        const data = change.doc.data();
+
+        if (!data.senderUid || !data.candidate) return;
+
+        queueOrAddIceCandidate(
+          data.senderUid,
+          data.candidate
+        );
+      });
+    });
+
+    // ---------------------------------------------------------
+    // PARTICIPANTS
+    // ---------------------------------------------------------
+    const participantsRef = collection(
+      db,
+      "calls",
+      roomId,
+      "participants"
+    );
+
+    const unsubParticipants = onSnapshot(participantsRef, snap => {
+      snap.docChanges().forEach(async change => {
+        const targetUid = change.doc.id;
+
+        if (targetUid === uid) return;
+
+        if (change.type === "removed") {
+          removePeer(targetUid);
+
+          window.dispatchEvent(
+            new CustomEvent("remote-screen-status", {
+              detail: {
+                uid: targetUid,
+                isSharingScreen: false
+              }
+            })
+          );
+
+          return;
+        }
+
+        if (change.type !== "added" && change.type !== "modified") {
+          return;
+        }
+
+        const data = change.doc.data();
+
+        // Ghost/reconnect detection.
+        const existingJoinedAt =
+          remoteJoinedAt.current.get(targetUid) || 0;
+
+        const newJoinedAt = data.joinedAt || 0;
+
+        if (
+          existingJoinedAt &&
+          newJoinedAt > existingJoinedAt &&
+          peersRef.current.has(targetUid)
+        ) {
+          removePeer(targetUid);
+        }
+
+        remoteJoinedAt.current.set(targetUid, newJoinedAt);
+
+        setParticipantNames(prev => {
+          const next = new Map(prev);
+          next.set(
+            targetUid,
+            data.userName || "Participant"
+          );
+          return next;
+        });
+
+        setParticipantStates(prev => {
+          const next = new Map(prev);
+          next.set(targetUid, {
+            isMuted: !!data.isMuted,
+            isCameraOff: !!data.isCameraOff
+          });
+          return next;
+        });
+
+        window.dispatchEvent(
+          new CustomEvent("remote-screen-status", {
+            detail: {
+              uid: targetUid,
+              isSharingScreen: !!data.isSharingScreen
+            }
+          })
+        );
+
+        // Only the lexicographically larger UID creates the offer.
+        if (!peersRef.current.has(targetUid) && uid > targetUid) {
+          try {
+            const pc = createPeerConnection(targetUid);
+
+            if (pc.signalingState !== "stable") return;
+
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+
+            const targetOffersRef = collection(
+              db,
+              "calls",
+              roomId,
+              "participants",
+              targetUid,
+              "offers"
+            );
+
+            await addDoc(targetOffersRef, {
+              senderUid: uid,
+              offer: {
+                type: offer.type,
+                sdp: offer.sdp
+              }
+            });
+          } catch (err) {
+            console.error("Offer creation failed:", err);
+            removePeer(targetUid);
           }
         }
       });
     });
 
-    const participantsRef = collection(db, "calls", roomId, "participants");
-    const unsubParticipants = onSnapshot(participantsRef, (snap) => {
-       snap.docChanges().forEach(async (change) => {
-          const targetUid = change.doc.id;
-          const data = change.doc.data();
-          
-          if (change.type === "added" || change.type === "modified") {
-             if (targetUid !== uid) {
-               // Detect Ghost Reconnects (If peer refreshed without sending removed event)
-               const existingJoinedAt = remoteJoinedAt.current.get(targetUid) || 0;
-               const newJoinedAt = data.joinedAt || 0;
-               if (newJoinedAt > existingJoinedAt) {
-                   removePeer(targetUid);
-                   remoteJoinedAt.current.set(targetUid, newJoinedAt);
-               }
+    unsubscribers.current.push(
+      unsubOffers,
+      unsubAnswers,
+      unsubCandidates,
+      unsubParticipants
+    );
 
-               setParticipantNames(prev => {
-                 const next = new Map(prev);
-                 next.set(targetUid, data.userName || "Participant");
-                 return next;
-               });
-               
-               setParticipantStates(prev => {
-                 const next = new Map(prev);
-                 next.set(targetUid, { isMuted: !!data.isMuted, isCameraOff: !!data.isCameraOff });
-                 return next;
-               });
-               
-               // Dispatch screen share status for VideoGrid layout pinning
-               window.dispatchEvent(new CustomEvent('remote-screen-status', {
-                  detail: { uid: targetUid, isSharingScreen: !!data.isSharingScreen }
-               }));
-
-               // WebRTC Connection Logic (Fixes Ghost Reconnects & Connection Glare)
-               if (!peersRef.current.has(targetUid)) {
-                   if (uid > targetUid) {
-                       const pc = createPeerConnection(targetUid);
-                       const offer = await pc.createOffer();
-                       await pc.setLocalDescription(offer);
-
-                       const targetOffersRef = collection(db, "calls", roomId, "participants", targetUid, "offers");
-                       await addDoc(targetOffersRef, {
-                          senderUid: uid,
-                          offer: { type: offer.type, sdp: offer.sdp }
-                       });
-                   }
-               }
-             }
-          }
-          
-          if (change.type === "removed") {
-             removePeer(targetUid);
-          }
-       });
-    });
-
-    unsubscribers.current.push(unsubOffers, unsubAnswers, unsubCandidates, unsubParticipants);
     setConnectionState("connected");
-  };
-
-  const [facingMode, setFacingMode] = useState("user");
+  }, [
+    roomId,
+    createPeerConnection,
+    flushPendingIce,
+    queueOrAddIceCandidate,
+    removePeer
+  ]);
 
   const switchCamera = useCallback(async () => {
     if (!localStreamRef.current) return;
+
     try {
-      const newMode = facingMode === "user" ? "environment" : "user";
-      const newStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: newMode, width: { ideal: 640 }, height: { ideal: 480 } },
-        audio: false // keep existing audio
-      });
-      const newVideoTrack = newStream.getVideoTracks()[0];
-      
-      // Stop old video track
-      const oldVideoTrack = localStreamRef.current.getVideoTracks()[0];
+      const newMode =
+        facingMode === "user" ? "environment" : "user";
+
+      const newStream =
+        await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: newMode,
+            width: { ideal: 640 },
+            height: { ideal: 480 }
+          },
+          audio: false
+        });
+
+      const newVideoTrack =
+        newStream.getVideoTracks()[0];
+
+      if (!newVideoTrack) {
+        throw new Error("No camera track was returned.");
+      }
+
+      const oldVideoTrack =
+        localStreamRef.current.getVideoTracks()[0];
+
       if (oldVideoTrack) {
         localStreamRef.current.removeTrack(oldVideoTrack);
-        oldVideoTrack.stop();
+
+        try {
+          oldVideoTrack.stop();
+        } catch {}
       }
-      
-      // Add new video track
+
       localStreamRef.current.addTrack(newVideoTrack);
-      
-      // Update peers
+
+      // Replace the outgoing video track in every active peer.
       peersRef.current.forEach(pc => {
-        const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
-        if (sender) sender.replaceTrack(newVideoTrack);
+        const sender = pc
+          .getSenders()
+          .find(
+            item =>
+              item.track &&
+              item.track.kind === "video"
+          );
+
+        if (sender) {
+          sender.replaceTrack(newVideoTrack).catch(err => {
+            console.warn("replaceTrack failed:", err);
+          });
+        }
       });
-      
-      setLocalStream(new MediaStream(localStreamRef.current.getTracks()));
+
+      setLocalStream(
+        new MediaStream(
+          localStreamRef.current.getTracks()
+        )
+      );
+
       setFacingMode(newMode);
+
+      window.dispatchEvent(
+        new CustomEvent("streamchanged")
+      );
     } catch (err) {
       console.error("Error switching camera:", err);
     }
@@ -319,117 +661,328 @@ export default function useWebRTC(roomId, userName) {
 
   const start = useCallback(async (overrideName) => {
     const activeName = overrideName || userName;
+
+    if (startedRef.current && localStreamRef.current) {
+      return true;
+    }
+
     try {
+      startedRef.current = true;
+      setError(null);
       setConnectionState("connecting");
 
-      // 1. CAPTURE MEDIA IMMEDIATELY (iOS strict user-gesture requirement)
+      // ---------------------------------------------------------
+      // 1. CAPTURE MEDIA FIRST
+      // ---------------------------------------------------------
+      // autoGainControl is deliberately OFF because the custom
+      // pipeline already controls level. Two AGCs fighting each
+      // other can make speech pump and make the fan more audible.
       if (!localStreamRef.current) {
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-           throw new Error("unsupported_browser");
+        if (
+          !navigator.mediaDevices ||
+          !navigator.mediaDevices.getUserMedia
+        ) {
+          throw new Error("unsupported_browser");
         }
-        const rawStream = await navigator.mediaDevices.getUserMedia({ 
-          video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } }, 
-          audio: {
-            noiseSuppression: true,
-            echoCancellation: true,
-            autoGainControl: true,
-          }
-        });
 
-        // Advanced noise suppression pipeline (Noise Gate + Filters + Compressor)
-        const { processedStream, cleanup: audioCleanup } = await createNoiseSuppressedStream(rawStream);
+        const rawStream =
+          await navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: "user",
+              width: { ideal: 640 },
+              height: { ideal: 480 },
+              frameRate: { ideal: 24, max: 30 }
+            },
+            audio: {
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: false,
+              channelCount: 1
+            }
+          });
+
+        rawStreamRef.current = rawStream;
+
+        const {
+          processedStream,
+          cleanup: audioCleanup
+        } = await createNoiseSuppressedStream(
+          rawStream
+        );
+
         audioCleanupRef.current = audioCleanup;
 
         localStreamRef.current = processedStream;
         setLocalStream(processedStream);
       }
 
-      // 2. NOW DO FIREBASE NETWORK CALLS
+      // ---------------------------------------------------------
+      // 2. FIREBASE / ROOM SETUP
+      // ---------------------------------------------------------
       const uid = getLocalUid(roomId);
       myUid.current = uid;
 
-      const callDocRef = doc(db, "calls", roomId);
-      const callSnap = await getDoc(callDocRef);
-      
+      const callDocRef = doc(
+        db,
+        "calls",
+        roomId
+      );
+
+      const callSnap =
+        await getDoc(callDocRef);
+
       let hostStatus = false;
+
       if (!callSnap.exists()) {
-         await setDoc(callDocRef, { hostUid: uid, createdAt: Date.now() });
-         hostStatus = true;
+        await setDoc(callDocRef, {
+          hostUid: uid,
+          createdAt: Date.now()
+        });
+
+        hostStatus = true;
       } else {
-         hostStatus = callSnap.data().hostUid === uid;
+        hostStatus =
+          callSnap.data().hostUid === uid;
       }
+
       setIsHost(hostStatus);
 
+      // ---------------------------------------------------------
+      // 3. GUEST KNOCK / HOST JOIN
+      // ---------------------------------------------------------
       if (!hostStatus) {
-         // Guest: Check if admitted
-         const allowedDoc = await getDoc(doc(db, "calls", roomId, "allowedUsers", uid));
-         if (!allowedDoc.exists()) {
-             setConnectionState("knocking");
-             const knockRef = doc(db, "calls", roomId, "knockers", uid);
-             await setDoc(knockRef, { userName: activeName, status: "waiting", timestamp: Date.now() });
+        const allowedDoc = await getDoc(
+          doc(
+            db,
+            "calls",
+            roomId,
+            "allowedUsers",
+            uid
+          )
+        );
 
-             return new Promise((resolve, reject) => {
-                 const unsub = onSnapshot(knockRef, async (snap) => {
-                     if (snap.exists()) {
-                         const status = snap.data().status;
-                         if (status === "admitted") {
-                             unsub();
-                             await setDoc(doc(db, "calls", roomId, "allowedUsers", uid), { admittedAt: Date.now() });
-                             await deleteDoc(knockRef);
-                             setConnectionState("connecting");
-                             await startWebRTC(uid, activeName);
-                             resolve(true);
-                         } else if (status === "denied") {
-                             unsub();
-                             setError("The host denied your entry to the room.");
-                             setConnectionState("failed");
-                             reject(new Error("denied"));
-                         }
-                     }
-                 });
-                 unsubscribers.current.push(unsub);
-             });
-         } else {
-             // Already admitted in a previous session
-             await startWebRTC(uid, activeName);
-         }
+        if (!allowedDoc.exists()) {
+          setConnectionState("knocking");
+
+          const knockRef = doc(
+            db,
+            "calls",
+            roomId,
+            "knockers",
+            uid
+          );
+
+          await setDoc(knockRef, {
+            userName: activeName,
+            status: "waiting",
+            timestamp: Date.now()
+          });
+
+          return await new Promise(
+            (resolve, reject) => {
+              const unsub = onSnapshot(
+                knockRef,
+                async snap => {
+                  if (!snap.exists()) return;
+
+                  const status =
+                    snap.data().status;
+
+                  if (status === "admitted") {
+                    try {
+                      unsub();
+
+                      await setDoc(
+                        doc(
+                          db,
+                          "calls",
+                          roomId,
+                          "allowedUsers",
+                          uid
+                        ),
+                        {
+                          admittedAt: Date.now()
+                        }
+                      );
+
+                      await deleteDoc(knockRef);
+
+                      setConnectionState(
+                        "connecting"
+                      );
+
+                      await startWebRTC(
+                        uid,
+                        activeName
+                      );
+
+                      resolve(true);
+                    } catch (err) {
+                      reject(err);
+                    }
+                  }
+
+                  if (status === "denied") {
+                    unsub();
+
+                    setError(
+                      "The host denied your entry to the room."
+                    );
+
+                    setConnectionState("failed");
+                    startedRef.current = false;
+
+                    reject(
+                      new Error("denied")
+                    );
+                  }
+                }
+              );
+
+              unsubscribers.current.push(unsub);
+            }
+          );
+        }
+
+        await startWebRTC(
+          uid,
+          activeName
+        );
       } else {
-         // Host: Listen for knockers
-         const knockersRef = collection(db, "calls", roomId, "knockers");
-         const unsubKnockers = onSnapshot(knockersRef, (snap) => {
-             const pending = [];
-             snap.forEach(docSnap => {
-                 if (docSnap.data().status === "waiting") {
-                     pending.push({ uid: docSnap.id, ...docSnap.data() });
-                 }
-             });
-             setPendingKnockers(pending);
-         });
-         unsubscribers.current.push(unsubKnockers);
+        const knockersRef = collection(
+          db,
+          "calls",
+          roomId,
+          "knockers"
+        );
 
-         await startWebRTC(uid, activeName);
+        const unsubKnockers =
+          onSnapshot(
+            knockersRef,
+            snap => {
+              const pending = [];
+
+              snap.forEach(docSnap => {
+                if (
+                  docSnap.data().status ===
+                  "waiting"
+                ) {
+                  pending.push({
+                    uid: docSnap.id,
+                    ...docSnap.data()
+                  });
+                }
+              });
+
+              setPendingKnockers(pending);
+            }
+          );
+
+        unsubscribers.current.push(
+          unsubKnockers
+        );
+
+        await startWebRTC(
+          uid,
+          activeName
+        );
       }
-    } catch (err) {
-       if (err.message !== "denied") {
-          console.error("WebRTC Error:", err);
-          if (err.message === "unsupported_browser") {
-             setError("Your browser does not support camera access. If you are using an in-app browser (like Instagram or Facebook), please open this link in Safari or Chrome.");
-          } else {
-             setError("Failed to start video call. Please allow camera and mic permissions.");
-          }
-          setConnectionState("failed");
-       }
-    }
-  }, [roomId, userName]);
 
-  const resolveKnock = async (uid, status) => {
-    try {
-      const knockRef = doc(db, "calls", roomId, "knockers", uid);
-      await updateDoc(knockRef, { status });
-    } catch (e) {
-      console.error("Failed to resolve knock:", e);
+      return true;
+    } catch (err) {
+      startedRef.current = false;
+
+      if (err?.message === "denied") {
+        throw err;
+      }
+
+      console.error(
+        "WebRTC start error:",
+        err
+      );
+
+      if (
+        err?.message ===
+        "unsupported_browser"
+      ) {
+        setError(
+          "Your browser does not support camera access. If you are using an in-app browser, please open the link in Safari or Chrome."
+        );
+      } else if (
+        err?.name ===
+        "NotAllowedError"
+      ) {
+        setError(
+          "Camera and microphone permission was denied. Please allow access and try again."
+        );
+      } else if (
+        err?.name ===
+        "NotFoundError"
+      ) {
+        setError(
+          "No camera or microphone was found on this device."
+        );
+      } else {
+        setError(
+          "Failed to start video call. Please allow camera and microphone permissions."
+        );
+      }
+
+      setConnectionState("failed");
+
+      // Release media if Firebase/WebRTC setup failed.
+      if (localStreamRef.current) {
+        localStreamRef.current
+          .getTracks()
+          .forEach(track => {
+            try { track.stop(); } catch {}
+          });
+      }
+
+      if (rawStreamRef.current) {
+        rawStreamRef.current
+          .getTracks()
+          .forEach(track => {
+            try { track.stop(); } catch {}
+          });
+      }
+
+      if (audioCleanupRef.current) {
+        try { audioCleanupRef.current(); } catch {}
+      }
+
+      localStreamRef.current = null;
+      rawStreamRef.current = null;
+      audioCleanupRef.current = null;
+      setLocalStream(null);
+
+      throw err;
     }
-  };
+  }, [roomId, userName, startWebRTC]);
+
+  const resolveKnock = useCallback(
+    async (uid, status) => {
+      try {
+        const knockRef = doc(
+          db,
+          "calls",
+          roomId,
+          "knockers",
+          uid
+        );
+
+        await updateDoc(knockRef, {
+          status
+        });
+      } catch (err) {
+        console.error(
+          "Failed to resolve knock:",
+          err
+        );
+      }
+    },
+    [roomId]
+  );
 
   return {
     localStream,

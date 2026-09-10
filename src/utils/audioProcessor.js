@@ -1,138 +1,274 @@
-/**
- * Advanced audio processing pipeline for background noise suppression.
- * Uses Web Audio API: Noise Gate (AudioWorklet) + Band-pass Filter + Compressor.
- */
+// src/utils/audioProcessor.js
 
 const NOISE_GATE_WORKLET_CODE = `
 class NoiseGateProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
-    this.threshold = 0.008;
-    this.gain = 0;
+
+    this.sampleRateValue = sampleRate;
+
+    // Gentle adaptive gate. The goal is to reduce constant room/fan noise
+    // without chopping the beginning/end of words.
+    this.minThreshold = 0.0035;
+    this.maxThreshold = 0.018;
+    this.noiseAdaptation = 0.0025;
+
+    this.closedGain = 0.08;
+
+    this.attackMs = 8;
+    this.holdMs = 120;
+    this.releaseMs = 180;
+
+    this.attackCoeff = 1 / Math.max(1, this.sampleRateValue * (this.attackMs / 1000));
+    this.releaseCoeff = 1 / Math.max(1, this.sampleRateValue * (this.releaseMs / 1000));
+
+    this.holdSamples = Math.floor(this.sampleRateValue * (this.holdMs / 1000));
     this.holdCounter = 0;
-    this.holdSamples = Math.floor(sampleRate * 0.15);  // 150ms hold
-    this.attackCoeff = 1.0 / (sampleRate * 0.003);      // 3ms attack
-    this.releaseCoeff = 1.0 / (sampleRate * 0.08);      // 80ms release
+
+    this.noiseFloor = this.minThreshold;
+    this.envelope = 0;
+    this.gain = 1;
+
+    this.rmsAccumulator = 0;
+    this.rmsCount = 0;
+    this.blockRms = 0;
+
+    this.port.onmessage = (event) => {
+      if (event.data?.type === "reset") {
+        this.noiseFloor = this.minThreshold;
+        this.envelope = 0;
+        this.gain = 1;
+        this.holdCounter = 0;
+      }
+    };
   }
 
   process(inputs, outputs) {
     const input = inputs[0];
     const output = outputs[0];
-    if (!input || !input.length || !input[0].length) return true;
 
-    for (let ch = 0; ch < input.length; ch++) {
-      const inp = input[ch];
-      const out = output[ch];
+    if (!input || !input.length || !output || !output.length) {
+      return true;
+    }
 
-      for (let i = 0; i < inp.length; i++) {
-        const level = Math.abs(inp[i]);
+    const inputChannel = input[0];
+    if (!inputChannel) return true;
 
-        if (level > this.threshold) {
-          this.gain = Math.min(1, this.gain + this.attackCoeff);
-          this.holdCounter = this.holdSamples;
-        } else if (this.holdCounter > 0) {
-          this.holdCounter--;
-        } else {
-          this.gain = Math.max(0, this.gain - this.releaseCoeff);
-        }
+    const outputLength = output[0].length;
 
-        out[i] = inp[i] * this.gain;
+    // Estimate RMS over the current worklet block.
+    let sumSquares = 0;
+    for (let i = 0; i < inputChannel.length; i++) {
+      const x = inputChannel[i];
+      sumSquares += x * x;
+    }
+
+    const rms = Math.sqrt(sumSquares / Math.max(1, inputChannel.length));
+    this.blockRms = rms;
+
+    // Slowly follow the quiet background only when the signal is quiet.
+    // This prevents the threshold from chasing speech.
+    if (rms < this.noiseFloor * 1.8) {
+      this.noiseFloor = this.noiseFloor * 0.995 + rms * 0.005;
+    } else {
+      this.noiseFloor = this.noiseFloor * 0.999 + Math.min(rms, this.noiseFloor * 1.2) * 0.001;
+    }
+
+    const adaptiveThreshold = Math.min(
+      this.maxThreshold,
+      Math.max(this.minThreshold, this.noiseFloor + this.noiseAdaptation)
+    );
+
+    const openThreshold = adaptiveThreshold;
+    const closeThreshold = adaptiveThreshold * 0.72;
+
+    let isOpen = this.holdCounter > 0;
+
+    if (rms >= openThreshold) {
+      this.holdCounter = this.holdSamples;
+      isOpen = true;
+    } else if (rms > closeThreshold && this.holdCounter > 0) {
+      isOpen = true;
+    } else if (this.holdCounter > 0) {
+      this.holdCounter--;
+      isOpen = true;
+    } else {
+      isOpen = false;
+    }
+
+    const targetGain = isOpen ? 1 : this.closedGain;
+
+    for (let i = 0; i < outputLength; i++) {
+      const x = inputChannel[i] || 0;
+
+      // Envelope smoothing avoids hard sample-by-sample switching.
+      const abs = Math.abs(x);
+      if (abs > this.envelope) {
+        this.envelope += (abs - this.envelope) * this.attackCoeff;
+      } else {
+        this.envelope += (abs - this.envelope) * this.releaseCoeff;
+      }
+
+      const coeff = targetGain > this.gain ? this.attackCoeff : this.releaseCoeff;
+      this.gain += (targetGain - this.gain) * coeff;
+
+      output[0][i] = x * this.gain;
+
+      // Preserve stereo compatibility if the context ever supplies it.
+      for (let ch = 1; ch < output.length; ch++) {
+        output[ch][i] = x * this.gain;
       }
     }
+
     return true;
   }
 }
 
-registerProcessor('noise-gate-processor', NoiseGateProcessor);
+registerProcessor("noise-gate-processor", NoiseGateProcessor);
 `;
 
-/**
- * Takes a raw MediaStream and returns a processed one with noise suppression.
- * The processed stream has the same video tracks but cleaned-up audio.
- */
 export async function createNoiseSuppressedStream(rawStream) {
-  try {
-    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    const source = audioContext.createMediaStreamSource(rawStream);
+  if (!rawStream) {
+    throw new Error("No raw MediaStream was provided.");
+  }
 
-    // ---- 1. High-pass filter: cut rumble below 80Hz (fans, AC, traffic) ----
-    const highPass = audioContext.createBiquadFilter();
-    highPass.type = "highpass";
-    highPass.frequency.value = 80;
-    highPass.Q.value = 0.7;
+  const audioTracks = rawStream.getAudioTracks();
+  const videoTracks = rawStream.getVideoTracks();
 
-    // ---- 2. Low-pass filter: cut hiss above 8kHz (not needed for voice) ----
-    const lowPass = audioContext.createBiquadFilter();
-    lowPass.type = "lowpass";
-    lowPass.frequency.value = 8000;
-    lowPass.Q.value = 0.7;
-
-    // ---- 3. Notch filter: kill 50Hz electrical hum ----
-    const notch50 = audioContext.createBiquadFilter();
-    notch50.type = "notch";
-    notch50.frequency.value = 50;
-    notch50.Q.value = 10;
-
-    // ---- 4. Notch filter: kill 60Hz electrical hum ----
-    const notch60 = audioContext.createBiquadFilter();
-    notch60.type = "notch";
-    notch60.frequency.value = 60;
-    notch60.Q.value = 10;
-
-    // ---- 5. Noise Gate via AudioWorklet ----
-    const blob = new Blob([NOISE_GATE_WORKLET_CODE], { type: "application/javascript" });
-    const blobUrl = URL.createObjectURL(blob);
-    await audioContext.audioWorklet.addModule(blobUrl);
-    URL.revokeObjectURL(blobUrl);
-
-    const noiseGate = new AudioWorkletNode(audioContext, "noise-gate-processor");
-
-    // ---- 6. Compressor: normalize volume ----
-    const compressor = audioContext.createDynamicsCompressor();
-    compressor.threshold.value = -35;
-    compressor.knee.value = 20;
-    compressor.ratio.value = 6;
-    compressor.attack.value = 0.003;
-    compressor.release.value = 0.25;
-
-    // ---- 7. Gain boost to compensate for filtering losses ----
-    const makeupGain = audioContext.createGain();
-    makeupGain.gain.value = 1.4;
-
-    const destination = audioContext.createMediaStreamDestination();
-
-    // Chain: source → highPass → lowPass → notch50 → notch60 → noiseGate → compressor → gain → destination
-    source.connect(highPass);
-    highPass.connect(lowPass);
-    lowPass.connect(notch50);
-    notch50.connect(notch60);
-    notch60.connect(noiseGate);
-    noiseGate.connect(compressor);
-    compressor.connect(makeupGain);
-    makeupGain.connect(destination);
-
-    // Build final stream: processed audio + original video tracks
-    const processedStream = new MediaStream();
-    destination.stream.getAudioTracks().forEach((t) => processedStream.addTrack(t));
-    rawStream.getVideoTracks().forEach((t) => processedStream.addTrack(t));
-
-    return {
-      processedStream,
-      audioContext,
-      cleanup: () => {
-        try {
-          source.disconnect();
-          audioContext.close();
-        } catch (_) {}
-      },
-    };
-  } catch (err) {
-    console.warn("Audio processing failed, falling back to raw stream:", err);
+  if (!audioTracks.length) {
     return {
       processedStream: rawStream,
-      audioContext: null,
-      cleanup: () => {},
+      cleanup: () => {}
+    };
+  }
+
+  let audioContext = null;
+  let source = null;
+  let highPass = null;
+  let lowPass = null;
+  let gate = null;
+  let compressor = null;
+  let limiter = null;
+  let outputGain = null;
+  let destination = null;
+  let workletUrl = null;
+  let cleaned = false;
+
+  try {
+    audioContext = new AudioContext({ latencyHint: "interactive" });
+
+    if (audioContext.state === "suspended") {
+      await audioContext.resume();
+    }
+
+    source = audioContext.createMediaStreamSource(rawStream);
+
+    // Remove very low-frequency rumble while keeping natural voice.
+    highPass = audioContext.createBiquadFilter();
+    highPass.type = "highpass";
+    highPass.frequency.value = 75;
+    highPass.Q.value = 0.7;
+
+    // Keep speech intelligible without unnecessarily boosting high-frequency fan hiss.
+    lowPass = audioContext.createBiquadFilter();
+    lowPass.type = "lowpass";
+    lowPass.frequency.value = 10500;
+    lowPass.Q.value = 0.7;
+
+    workletUrl = URL.createObjectURL(
+      new Blob([NOISE_GATE_WORKLET_CODE], { type: "application/javascript" })
+    );
+
+    await audioContext.audioWorklet.addModule(workletUrl);
+
+    gate = new AudioWorkletNode(audioContext, "noise-gate-processor", {
+      numberOfInputs: 1,
+      numberOfOutputs: 1,
+      channelCount: 1,
+      channelCountMode: "explicit",
+      channelInterpretation: "speakers"
+    });
+
+    // Much gentler than the previous -35 dB / 6:1 compressor.
+    compressor = audioContext.createDynamicsCompressor();
+    compressor.threshold.value = -20;
+    compressor.knee.value = 18;
+    compressor.ratio.value = 2.5;
+    compressor.attack.value = 0.008;
+    compressor.release.value = 0.18;
+
+    // Final safety limiter only; it should almost never engage.
+    limiter = audioContext.createDynamicsCompressor();
+    limiter.threshold.value = -3;
+    limiter.knee.value = 0;
+    limiter.ratio.value = 20;
+    limiter.attack.value = 0.001;
+    limiter.release.value = 0.08;
+
+    outputGain = audioContext.createGain();
+    outputGain.gain.value = 1.0;
+
+    destination = audioContext.createMediaStreamDestination();
+
+    source.connect(highPass);
+    highPass.connect(lowPass);
+    lowPass.connect(gate);
+    gate.connect(compressor);
+    compressor.connect(limiter);
+    limiter.connect(outputGain);
+    outputGain.connect(destination);
+
+    const processedAudioTrack = destination.stream.getAudioTracks()[0];
+
+    // Keep the original camera tracks and replace only the microphone track.
+    const processedStream = new MediaStream([
+      ...videoTracks,
+      processedAudioTrack
+    ]);
+
+    const cleanup = () => {
+      if (cleaned) return;
+      cleaned = true;
+
+      try { source?.disconnect(); } catch {}
+      try { highPass?.disconnect(); } catch {}
+      try { lowPass?.disconnect(); } catch {}
+      try { gate?.disconnect(); } catch {}
+      try { compressor?.disconnect(); } catch {}
+      try { limiter?.disconnect(); } catch {}
+      try { outputGain?.disconnect(); } catch {}
+
+      try { processedAudioTrack?.stop(); } catch {}
+
+      if (workletUrl) {
+        try { URL.revokeObjectURL(workletUrl); } catch {}
+      }
+
+      try { audioContext?.close(); } catch {}
+    };
+
+    return { processedStream, cleanup };
+  } catch (error) {
+    console.error("Audio processing failed. Using native WebRTC audio:", error);
+
+    try { source?.disconnect(); } catch {}
+    try { highPass?.disconnect(); } catch {}
+    try { lowPass?.disconnect(); } catch {}
+    try { gate?.disconnect(); } catch {}
+    try { compressor?.disconnect(); } catch {}
+    try { limiter?.disconnect(); } catch {}
+    try { outputGain?.disconnect(); } catch {}
+
+    if (workletUrl) {
+      try { URL.revokeObjectURL(workletUrl); } catch {}
+    }
+
+    try { await audioContext?.close(); } catch {}
+
+    // Never block the call just because the custom processor failed.
+    return {
+      processedStream: rawStream,
+      cleanup: () => {}
     };
   }
 }
-

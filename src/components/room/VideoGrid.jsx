@@ -747,11 +747,11 @@ const VideoGrid = memo(function VideoGrid({
             key={localBubble.id}
             className="chat-bubble-anim absolute bottom-12 left-2 right-2 z-20 pointer-events-none"
           >
-            <div className="inline-block max-w-full bg-black/75 backdrop-blur-md border border-white/10 text-white text-[10px] sm:text-xs px-2.5 py-1.5 rounded-2xl rounded-bl-sm shadow-lg leading-snug">
+            <div className="inline-block max-w-full bg-white/90 border border-cyan-400 text-black text-[10px] sm:text-xs px-2.5 py-1.5 rounded-2xl rounded-bl-sm shadow-lg leading-snug">
               {localBubble.text}
             </div>
-
-            <div className="w-2 h-2 bg-black/75 border-l border-b border-white/10 rotate-[-45deg] ml-2.5 -mt-1" />
+            {/* Tail */}
+            <div className="w-2 h-2 bg-white/90 border-l border-b border-cyan-400 rotate-[-45deg] ml-2.5 -mt-1" />
           </div>
         )}
       </div>

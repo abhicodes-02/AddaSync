@@ -75,7 +75,7 @@ body,
   8%   { opacity: 1; transform: translateY(-5px) scale(1.1) rotate(3deg); }
   14%  { opacity: 1; transform: translateY(0) scale(1) rotate(0); }
   85%  { opacity: 1; transform: translateY(0) scale(1); }
-  100% { opacity: 0; transform: translateY(-15px) scale(0.9); filter: blur(4px); }
+  100% { opacity: 0; transform: translateY(-15px) scale(0.9); }
 }
 
 .chat-bubble-anim {

@@ -158,8 +158,9 @@ export default function useMediaControls(localStreamRef, peersRef, setLocalStrea
         // Save cleanup to context
         shareContext.current.pipCleanup = cleanup;
         
-        // For screen share, we replace the local video track with the composite PiP
-        startExternalStream(pipStream, true);
+        // For screen share, we do NOT replace the local video track so the user can still see their own face in the bottom row!
+        // The composite stream is only sent to peers.
+        startExternalStream(pipStream, false);
         
         // Ensure cleanup runs when external track ends (user stops sharing via browser bar)
         pipStream.getVideoTracks()[0].onended = () => {

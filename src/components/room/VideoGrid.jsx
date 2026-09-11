@@ -549,11 +549,7 @@ const VideoGrid = memo(function VideoGrid({
                 muted
                 playsInline
                 disablePictureInPicture
-                className={`w-full h-full object-cover ${
-                  isScreenSharing
-                    ? ""
-                    : "scale-x-[-1]"
-                }`}
+                className="w-full h-full object-cover scale-x-[-1]"
               />
             )}
 

@@ -430,12 +430,18 @@ const VideoGrid = memo(function VideoGrid({
               </div>
 
               <video
+                ref={(el) => {
+                  if (el && mediaFileUrl) {
+                    el.play().catch(e => console.warn("Autoplay blocked, needs manual play", e));
+                  }
+                }}
                 src={mediaFileUrl}
                 controls
                 autoPlay
                 playsInline
                 disablePictureInPicture
-                className="w-full h-full object-contain"
+                className="w-full h-full object-contain relative z-10"
+                style={{ minHeight: '300px', backgroundColor: '#000' }}
                 onPlay={event => {
                   const capture =
                     event.target.captureStream ||

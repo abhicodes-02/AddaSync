@@ -50,9 +50,9 @@ export default function VideoRoom() {
 
   const [localName, setLocalName] = useState(() => {
     try {
-      const navigated = sessionStorage.getItem("meetflow_navigated");
+      const navigated = sessionStorage.getItem("addasync_navigated");
       if (navigated) {
-        sessionStorage.removeItem("meetflow_navigated");
+        sessionStorage.removeItem("addasync_navigated");
         return location.state?.userName || "";
       }
     } catch (e) {}
@@ -60,7 +60,7 @@ export default function VideoRoom() {
   });
   const [nameInput, setNameInput] = useState(() => {
     try {
-      return localStorage.getItem("meetflow_name") || "";
+      return localStorage.getItem("addasync_name") || "";
     } catch (e) {
       return "";
     }
@@ -118,7 +118,7 @@ export default function VideoRoom() {
     const trimmed = nameInput.trim();
     if (trimmed) {
       try {
-        localStorage.setItem("meetflow_name", trimmed);
+        localStorage.setItem("addasync_name", trimmed);
       } catch (e) {
         // Ignore iOS Private Mode errors
       }

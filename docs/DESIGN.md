@@ -1,6 +1,6 @@
-# MeetFlow: Design Flow & Architecture
+# AddaSync: Design Flow & Architecture
 
-This document outlines the UI component hierarchy, layout states, and state management hooks driving the MeetFlow interface.
+This document outlines the UI component hierarchy, layout states, and state management hooks driving the AddaSync interface.
 
 ## 1. Component Hierarchy
 The UI is modularized into feature-specific components:
@@ -46,6 +46,6 @@ State is decoupled from the UI using custom React hooks located in `src/hooks/`:
 - **Custom Scrollbars**: Native browser scrollbars are hidden and replaced with minimalist, dark-glassmorphic WebKit scrollbars.
 
 ## 5. React Render Performance & UX
-- **Memoization Framework**: In real-time apps, chat messages or unrelated state changes can cause the entire video grid to re-render, leading to micro-stutters. MeetFlow wraps heavy UI components (`VideoGrid`, `SidePanel`, `RoomHeader`, `ControlDock`) in `React.memo()`. This creates rendering boundaries, ensuring the video streams are never interrupted by a chat update.
+- **Memoization Framework**: In real-time apps, chat messages or unrelated state changes can cause the entire video grid to re-render, leading to micro-stutters. AddaSync wraps heavy UI components (`VideoGrid`, `SidePanel`, `RoomHeader`, `ControlDock`) in `React.memo()`. This creates rendering boundaries, ensuring the video streams are never interrupted by a chat update.
 - **UX Caching**: Users' display names are saved to the browser's `localStorage`. Returning to the app immediately pre-fills the onboarding screen, streamlining entry into future meetings.
 

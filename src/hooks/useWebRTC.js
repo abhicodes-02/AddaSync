@@ -23,7 +23,7 @@ const ICE_SERVERS = {
 };
 
 const getLocalUid = (roomId) => {
-  const key = `meetflow_uid_${roomId}`;
+  const key = `addasync_uid_${roomId}`;
   let uid = null;
 
   try {

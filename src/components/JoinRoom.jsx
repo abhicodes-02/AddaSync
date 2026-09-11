@@ -13,7 +13,7 @@ export default function JoinRoom() {
       alert("Room ID must be at least 4 characters");
       return;
     }
-    try { sessionStorage.setItem("meetflow_navigated", "true"); } catch (e) {}
+    try { sessionStorage.setItem("addasync_navigated", "true"); } catch (e) {}
     navigate(`/room/${trimmed}`, {
       state: { userName: userName.trim() },
     });

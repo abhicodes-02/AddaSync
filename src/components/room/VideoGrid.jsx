@@ -414,43 +414,7 @@ const VideoGrid = memo(function VideoGrid({
         {/* Main Stage */}
         <div className="flex-1 relative flex items-center justify-center p-2 sm:p-4 pb-0 min-h-0">
 
-          {pinnedUid ? (
-            <div className="w-full h-full relative rounded-xl sm:rounded-2xl overflow-hidden ring-1 ring-white/10 shadow-2xl bg-black">
-
-              <div className="absolute top-4 left-4 z-20 flex items-center gap-2 sm:gap-3 pointer-events-none">
-                <div className="bg-black/70 backdrop-blur-md px-3 py-1.5 rounded-lg text-white text-[13px] font-medium border border-white/10 flex items-center gap-2 shadow-xl">
-                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                  {pinnedUid === "local" ? (localName || "You") : (participantNames?.get(pinnedUid) || "Participant")}
-                  {remoteScreenSharers.has(pinnedUid) ? "'s Screen" : " (Spotlight)"}
-                </div>
-
-                <div className="bg-red-600 text-white text-[10px] font-bold tracking-wider px-2 py-1 rounded shadow-lg">
-                  LIVE
-                </div>
-              </div>
-
-              {pinnedUid === "local" ? (
-                <video
-                  ref={localVideoRef}
-                  autoPlay
-                  muted
-                  playsInline
-                  disablePictureInPicture
-                  className="w-full h-full object-contain scale-x-[-1]"
-                />
-              ) : (
-                <RemoteVideo
-                  stream={remoteStreams.get(pinnedUid)}
-                  isConnected={isConnected}
-                  name=""
-                  hideName={true}
-                  isMuted={participantStates?.get(pinnedUid)?.isMuted}
-                  isCameraOff={false}
-                />
-              )}
-            </div>
-
-          ) : mediaFileUrl ? (
+          {mediaFileUrl ? (
             <div className="w-full h-full relative rounded-xl sm:rounded-2xl overflow-hidden ring-1 ring-white/10 shadow-2xl bg-black">
 
               <div className="absolute top-4 left-4 z-20 flex items-center gap-2 sm:gap-3 pointer-events-none">
@@ -496,6 +460,43 @@ const VideoGrid = memo(function VideoGrid({
                 }}
               />
             </div>
+
+          ) : pinnedUid ? (
+            <div className="w-full h-full relative rounded-xl sm:rounded-2xl overflow-hidden ring-1 ring-white/10 shadow-2xl bg-black">
+
+              <div className="absolute top-4 left-4 z-20 flex items-center gap-2 sm:gap-3 pointer-events-none">
+                <div className="bg-black/70 backdrop-blur-md px-3 py-1.5 rounded-lg text-white text-[13px] font-medium border border-white/10 flex items-center gap-2 shadow-xl">
+                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                  {pinnedUid === "local" ? (localName || "You") : (participantNames?.get(pinnedUid) || "Participant")}
+                  {remoteScreenSharers.has(pinnedUid) ? "'s Screen" : " (Spotlight)"}
+                </div>
+
+                <div className="bg-red-600 text-white text-[10px] font-bold tracking-wider px-2 py-1 rounded shadow-lg">
+                  LIVE
+                </div>
+              </div>
+
+              {pinnedUid === "local" ? (
+                <video
+                  ref={localVideoRef}
+                  autoPlay
+                  muted
+                  playsInline
+                  disablePictureInPicture
+                  className="w-full h-full object-contain scale-x-[-1]"
+                />
+              ) : (
+                <RemoteVideo
+                  stream={remoteStreams.get(pinnedUid)}
+                  isConnected={isConnected}
+                  name=""
+                  hideName={true}
+                  isMuted={participantStates?.get(pinnedUid)?.isMuted}
+                  isCameraOff={false}
+                />
+              )}
+            </div>
+
 
           ) : (
             <div className="w-full h-full relative rounded-xl sm:rounded-2xl overflow-hidden ring-1 ring-white/10 shadow-2xl bg-cyan-950/20 flex flex-col items-center justify-center border border-cyan-500/20">

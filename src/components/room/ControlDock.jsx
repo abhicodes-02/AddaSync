@@ -109,7 +109,7 @@ const ControlDock = memo(function ControlDock({
         <input 
            type="file" 
            ref={fileInputRef} 
-           accept="video/*,audio/*" 
+           accept="video/*,audio/*,.mkv,.avi,.mov,.wmv,.flv,.webm,.mp4" 
            onChange={handleFileChange} 
            className="hidden" 
         />

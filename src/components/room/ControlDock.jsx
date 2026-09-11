@@ -133,7 +133,7 @@ const ControlDock = memo(function ControlDock({
 
         <div className="relative group/emoji flex items-center justify-center">
           <DockButton onClick={() => {}} tooltip="React">
-            <span className="text-lg leading-none">🔥</span>
+            <span className="text-lg leading-none emoji-reaction">🔥</span>
           </DockButton>
           
           <div className="absolute bottom-full mb-2 opacity-0 group-hover/emoji:opacity-100 pointer-events-none group-hover/emoji:pointer-events-auto transition-opacity duration-200">
@@ -142,7 +142,7 @@ const ControlDock = memo(function ControlDock({
                  <button 
                    key={emoji}
                    onClick={() => sendReaction?.(emoji)}
-                   className="w-10 h-10 hover:bg-white/10 rounded-xl text-xl transition-transform hover:scale-125 active:scale-95 flex items-center justify-center"
+                   className="w-10 h-10 hover:bg-white/10 rounded-xl text-xl transition-transform hover:scale-125 active:scale-95 flex items-center justify-center emoji-reaction"
                  >
                    {emoji}
                  </button>

@@ -93,3 +93,21 @@ body,
 .animate-float-up {
   animation: floatUp 3s ease-out forwards;
 }
+
+/* Theme Engine via Hue Rotation */
+.theme-container {
+  /* Apply hue rotation to the entire UI layer */
+  filter: hue-rotate(var(--theme-hue, 0deg));
+  transition: filter 1s ease-in-out;
+}
+
+/* Protect specific elements from being tinted (videos, images, emojis, and danger red elements) */
+.theme-container video, 
+.theme-container img, 
+.preserve-color, 
+.emoji-reaction,
+[class*="bg-red-"],
+[class*="text-red-"] {
+  filter: hue-rotate(calc(-1 * var(--theme-hue, 0deg)));
+  transition: filter 1s ease-in-out;
+}

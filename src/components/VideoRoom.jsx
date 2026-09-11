@@ -255,11 +255,23 @@ export default function VideoRoom() {
 
   const theme = roomState?.theme || "default";
 
+  // Hue shifts map default cyan (~190deg) to the theme's core color
+  const themeFilters = {
+    default: "0deg",
+    cyberpunk: "115deg", // Magenta/Pink
+    matrix: "-45deg",    // Emerald/Green
+    ocean: "25deg"       // Blue/Sky
+  };
+  const hueShift = themeFilters[theme] || "0deg";
+
   return (
-    <div className={`h-[100dvh] w-screen bg-[#0a0a0a] text-white flex overflow-hidden relative font-sans`}>
+    <div 
+      className={`h-[100dvh] w-screen bg-[#0a0a0a] text-white flex overflow-hidden relative font-sans theme-container`}
+      style={{ '--theme-hue': hueShift }}
+    >
       
       {/* Theme Background Layer */}
-      <div className="absolute inset-0 z-0 pointer-events-none transition-opacity duration-1000">
+      <div className="absolute inset-0 z-0 pointer-events-none transition-opacity duration-1000 preserve-color">
         {theme === "cyberpunk" && (
           <>
             <div className="absolute inset-0 bg-fuchsia-950/40 mix-blend-multiply" />
@@ -323,7 +335,7 @@ export default function VideoRoom() {
         {reactions.map(r => (
           <div 
             key={r.id} 
-            className="absolute bottom-32 flex flex-col items-center animate-float-up"
+            className="absolute bottom-32 flex flex-col items-center animate-float-up emoji-reaction"
             style={{
               left: `${Math.max(10, Math.random() * 90)}%`,
               animationDuration: `${2 + Math.random()}s`

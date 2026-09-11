@@ -42,7 +42,7 @@ The current Video Conferencing feature will become a robust built-in tool within
 - **Concept:** Paste a YouTube link in the chat to open a floating video player that synchronizes perfectly for everyone in the room.
 
 
-### 5. Picture-in-Picture (PiP) Screen Sharing (Face + Screen overlay) 🖼️
+<!-- ### 5. Picture-in-Picture (PiP) Screen Sharing (Face + Screen overlay) 🖼️
 - **Concept:** Instead of replacing the video feed with the screen share, the user's camera feed becomes a small circular overlay on top of their screen share (like a Twitch streamer).
 
 ### 6. Host-Specific Special Activities (Director Mode) 👑
@@ -50,4 +50,4 @@ The current Video Conferencing feature will become a robust built-in tool within
   - **Spotlight / Stage Director:** Force focus on specific users.
   - **Change Room Vibe:** Instantly change CSS themes and ambient music for everyone.
   - **Focus Mode:** Hard mute with a dramatic animation.
-  - **Forced Leave:** Admin power to kick unruly participants.
+  - **Forced Leave:** Admin power to kick unruly participants. -->

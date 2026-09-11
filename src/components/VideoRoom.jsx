@@ -253,16 +253,37 @@ export default function VideoRoom() {
     return <LoadingScreen message="Connecting to secure mesh..." />;
   }
 
-  const themeBgMap = {
-    default: "bg-[#0a0a0a]",
-    cyberpunk: "bg-fuchsia-950",
-    matrix: "bg-emerald-950",
-    ocean: "bg-cyan-950"
-  };
-  const bgClass = (roomState?.theme && themeBgMap[roomState.theme]) ? themeBgMap[roomState.theme] : themeBgMap.default;
+  const theme = roomState?.theme || "default";
 
   return (
-    <div className={`h-[100dvh] w-screen ${bgClass} text-white flex overflow-hidden relative font-sans transition-colors duration-1000`}>
+    <div className={`h-[100dvh] w-screen bg-[#0a0a0a] text-white flex overflow-hidden relative font-sans`}>
+      
+      {/* Theme Background Layer */}
+      <div className="absolute inset-0 z-0 pointer-events-none transition-opacity duration-1000">
+        {theme === "cyberpunk" && (
+          <>
+            <div className="absolute inset-0 bg-fuchsia-950/40 mix-blend-multiply" />
+            <div className="absolute top-0 left-1/4 w-1/2 h-full bg-fuchsia-600/10 blur-[150px] animate-[pulse_4s_ease-in-out_infinite]" />
+            <div className="absolute bottom-0 right-1/4 w-1/2 h-full bg-cyan-600/10 blur-[150px] animate-[pulse_5s_ease-in-out_infinite_reverse]" />
+            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAwIDEwIEwgNDAgMTAgTSAxMCAwIEwgMTAgNDAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyMTcsIDcwLCAyMzksIDAuMDgpIiBzdHJva2Utd2lkdGg9IjEiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZ3JpZCkiLz48L3N2Zz4=')] opacity-50" />
+          </>
+        )}
+        {theme === "matrix" && (
+          <>
+            <div className="absolute inset-0 bg-emerald-950/60 mix-blend-multiply" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(2,44,34,0.8)_100%)]" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[80%] bg-emerald-500/10 blur-[120px] animate-[pulse_3s_ease-in-out_infinite]" />
+            <div className="absolute inset-0" style={{ backgroundImage: "linear-gradient(0deg, rgba(16, 185, 129, 0.03) 1px, transparent 1px)", backgroundSize: "100% 4px" }} />
+          </>
+        )}
+        {theme === "ocean" && (
+          <>
+            <div className="absolute inset-0 bg-blue-950/60 mix-blend-multiply" />
+            <div className="absolute -top-1/4 -left-1/4 w-[150%] h-[150%] bg-[radial-gradient(ellipse_at_center,rgba(6,182,212,0.15)_0%,transparent_50%)] animate-[pulse_8s_ease-in-out_infinite]" />
+            <div className="absolute -bottom-1/4 -right-1/4 w-[150%] h-[150%] bg-[radial-gradient(ellipse_at_center,rgba(59,130,246,0.15)_0%,transparent_50%)] animate-[pulse_10s_ease-in-out_infinite_reverse]" />
+          </>
+        )}
+      </div>
       
       {/* Host Knocking Notifications */}
       {isHost && pendingKnockers.length > 0 && (

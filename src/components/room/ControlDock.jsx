@@ -64,6 +64,7 @@ const ControlDock = memo(function ControlDock({
   togglePiP,
   onLeave,
   mediaFileUrl,
+  sendReaction,
 }) {
   const fileInputRef = useRef(null);
 
@@ -126,6 +127,28 @@ const ControlDock = memo(function ControlDock({
           <DockButton onClick={togglePiP} tooltip="Picture in Picture">
             <FiMinimize2 size={18} />
           </DockButton>
+        </div>
+
+        <div className="w-px h-8 bg-white/10 mx-0.5" />
+
+        <div className="relative group/emoji flex items-center justify-center">
+          <DockButton onClick={() => {}} tooltip="React">
+            <span className="text-lg leading-none">🔥</span>
+          </DockButton>
+          
+          <div className="absolute bottom-full mb-2 opacity-0 group-hover/emoji:opacity-100 pointer-events-none group-hover/emoji:pointer-events-auto transition-opacity duration-200">
+            <div className="bg-slate-800 border border-white/10 shadow-2xl rounded-2xl p-2 flex gap-2">
+               {['👍', '❤️', '😂', '🎉', '🔥', '👏'].map(emoji => (
+                 <button 
+                   key={emoji}
+                   onClick={() => sendReaction?.(emoji)}
+                   className="w-10 h-10 hover:bg-white/10 rounded-xl text-xl transition-transform hover:scale-125 active:scale-95 flex items-center justify-center"
+                 >
+                   {emoji}
+                 </button>
+               ))}
+            </div>
+          </div>
         </div>
 
         <div className="w-px h-8 bg-white/10 mx-0.5" />

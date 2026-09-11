@@ -10,7 +10,8 @@ function RemoteVideo({
   isThumbnail,
   hideName,
   isMuted,
-  isCameraOff
+  isCameraOff,
+  forceMuted
 }) {
   const videoRef = useRef(null);
   const [bubble, setBubble] = useState(null);
@@ -70,9 +71,15 @@ function RemoteVideo({
     // Keep the video element mounted even when the participant's
     // camera is OFF. The same MediaStream carries the audio track.
     // Removing the <video> element would also stop remote audio.
-    video.volume = 1;
-    video.muted = false;
-    video.defaultMuted = false;
+    if (forceMuted) {
+      video.muted = true;
+      video.volume = 0;
+      video.defaultMuted = true;
+    } else {
+      video.muted = false;
+      video.volume = 1;
+      video.defaultMuted = false;
+    }
 
     if (stream) {
       if (video.srcObject !== stream) {
@@ -93,19 +100,24 @@ function RemoteVideo({
     return () => {
       // Do not stop the stream here. WebRTC owns the stream.
     };
-  }, [stream]);
+  }, [stream, forceMuted]);
 
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
-    video.volume = 1;
-    video.muted = false;
+    if (forceMuted) {
+      video.muted = true;
+      video.volume = 0;
+    } else {
+      video.muted = false;
+      video.volume = 1;
+    }
 
     if (video.paused && stream) {
       video.play().catch(() => {});
     }
-  }, [isCameraOff, stream]);
+  }, [isCameraOff, stream, forceMuted]);
 
   return (
     <div
@@ -567,34 +579,22 @@ const VideoGrid = memo(function VideoGrid({
                 return null;
               }
 
-              const pState =
-                participantStates?.get(
-                  uid
-                ) || {};
+              const pState = participantStates?.get(uid) || {};
+              const isFocusMuted = roomState?.focusMode && uid !== roomState?.hostUid;
 
               return (
                 <div
                   key={uid}
-                  className="w-32 sm:w-40 h-20 sm:h-24 shrink-0"
+                  className={`w-32 sm:w-40 h-20 sm:h-24 shrink-0 transition-opacity duration-500 ${isFocusMuted ? 'opacity-40 grayscale-[50%]' : 'opacity-100'}`}
                 >
                   <RemoteVideo
                     stream={stream}
-                    isConnected={
-                      isConnected
-                    }
-                    name={
-                      participantNames?.get(
-                        uid
-                      ) ||
-                      "Participant"
-                    }
+                    isConnected={isConnected}
+                    name={participantNames?.get(uid) || "Participant"}
                     isThumbnail={true}
-                    isMuted={
-                      pState.isMuted
-                    }
-                    isCameraOff={
-                      pState.isCameraOff
-                    }
+                    isMuted={isFocusMuted || pState.isMuted}
+                    isCameraOff={pState.isCameraOff}
+                    forceMuted={isFocusMuted}
                   />
                 </div>
               );

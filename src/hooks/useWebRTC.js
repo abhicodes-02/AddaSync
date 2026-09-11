@@ -358,6 +358,7 @@ export default function useWebRTC(roomId, userName) {
           spotlightUid: data.spotlightUid || null,
           theme: data.theme || "default",
           focusMode: data.focusMode || false,
+          hostUid: data.hostUid || null,
         });
       }
     });

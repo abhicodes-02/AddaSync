@@ -5,6 +5,7 @@ import useWebRTC from "../hooks/useWebRTC";
 import useMediaControls from "../hooks/useMediaControls";
 import useChat from "../hooks/useChat";
 import usePictureInPicture from "../hooks/usePictureInPicture";
+import useReactions from "../hooks/useReactions";
 
 import RoomHeader from "./room/RoomHeader";
 import VideoGrid from "./room/VideoGrid";
@@ -110,6 +111,7 @@ export default function VideoRoom() {
   );
 
   const { togglePiP, PiPPortal } = usePictureInPicture(localVideoRef, remoteStreams, localStream);
+  const { reactions, sendReaction } = useReactions(roomId, localName);
 
   // 2. CALLBACKS
   const handleJoin = useCallback(() => {
@@ -295,6 +297,25 @@ export default function VideoRoom() {
         </div>
       )}
 
+      {/* Floating Reactions Overlay */}
+      <div className="absolute inset-0 pointer-events-none z-50 overflow-hidden">
+        {reactions.map(r => (
+          <div 
+            key={r.id} 
+            className="absolute bottom-32 flex flex-col items-center animate-float-up"
+            style={{
+              left: `${Math.max(10, Math.random() * 90)}%`,
+              animationDuration: `${2 + Math.random()}s`
+            }}
+          >
+            <span className="text-4xl md:text-5xl">{r.emoji}</span>
+            <span className="bg-black/50 text-white text-[10px] px-2 py-0.5 rounded-full mt-1 font-medium backdrop-blur-sm">
+              {r.sender}
+            </span>
+          </div>
+        ))}
+      </div>
+
       {PiPPortal}
 
       <RoomHeader 
@@ -351,6 +372,7 @@ export default function VideoRoom() {
           mediaFileUrl={mediaFileUrl}
           onShareMedia={handleShareMedia}
           onStopMedia={handleStopMedia}
+          sendReaction={sendReaction}
         />
       </div>
     </div>

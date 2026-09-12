@@ -28,64 +28,14 @@ const RoomHeader = memo(function RoomHeader({
     addToast("Meeting link copied!", "success");
   };
 
-  const handleEmailShare = async () => {
+  const handleEmailShare = () => {
     const subject = encodeURIComponent(`📅 You're invited to an AddaSync Meeting!`);
+    const bodyText = `Hi there,\n\nYou have been invited to join a secure video conference on AddaSync.\n\n🚀 JOIN MEETING NOW:\n${fullUrl}\n\n-------------------------------------------------\n📌 Meeting Details:\n• Room Code: ${roomId}\n• Platform: AddaSync (No installation required)\n-------------------------------------------------\n\nTo join, simply click the link above from any web browser on your computer or mobile device.\n\nSee you in the meeting!`;
+    const body = encodeURIComponent(bodyText);
     
-    // Rich HTML Template
-    const htmlContent = `
-      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 500px; margin: 0 auto; padding: 25px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #f8fafc; box-shadow: 0 4px 20px rgba(0,0,0,0.05);">
-        <div style="text-align: center; margin-bottom: 25px;">
-          <img src="https://addasync.web.app/logo.jpg" alt="AddaSync Logo" style="width: 72px; height: 72px; border-radius: 16px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);" />
-          <h2 style="color: #0f172a; margin-top: 16px; font-size: 20px;">You're invited to an AddaSync Meeting!</h2>
-        </div>
-        
-        <div style="background-color: white; padding: 25px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #f1f5f9;">
-          <p style="color: #334155; font-size: 16px; margin-bottom: 20px; line-height: 1.5;">Hi there,</p>
-          <p style="color: #334155; font-size: 16px; margin-bottom: 25px; line-height: 1.5;">You have been invited to join a secure video conference. Click the button below to join the room instantly.</p>
-          
-          <div style="text-align: center; margin: 35px 0;">
-            <a href="${fullUrl}" style="background-color: #06b6d4; color: white; padding: 14px 32px; text-decoration: none; border-radius: 50px; font-weight: bold; font-size: 16px; display: inline-block; box-shadow: 0 4px 15px rgba(6, 182, 212, 0.4);">
-              🚀 JOIN MEETING NOW
-            </a>
-          </div>
-          
-          <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 25px 0;" />
-          
-          <p style="color: #64748b; font-size: 14px; margin: 8px 0;"><strong>Room Code:</strong> <span style="color: #0ea5e9; font-weight: bold;">${roomId}</span></p>
-          <p style="color: #64748b; font-size: 14px; margin: 8px 0;"><strong>Platform:</strong> AddaSync (No installation required)</p>
-        </div>
-        
-        <p style="text-align: center; color: #94a3b8; font-size: 13px;">To join, simply click the button from any web browser on your computer or mobile device.</p>
-      </div>
-    `;
-
-    // Plain Text Fallback
-    const textContent = `Hi there,\n\nYou have been invited to join a secure video conference on AddaSync.\n\n🚀 JOIN MEETING NOW:\n${fullUrl}\n\nMeeting Details:\n• Room Code: ${roomId}\n• Platform: AddaSync (No installation required)`;
-
-    try {
-      // 1. Write the rich HTML to the user's clipboard
-      const clipboardItem = new ClipboardItem({
-        "text/html": new Blob([htmlContent], { type: "text/html" }),
-        "text/plain": new Blob([textContent], { type: "text/plain" })
-      });
-      await navigator.clipboard.write([clipboardItem]);
-      
-      // 2. Notify the user
-      addToast("Design copied! Press Ctrl+V (or Paste) in Gmail to insert it.", "success");
-      
-      // 3. Open Gmail with ONLY the subject (body is empty so they can paste)
-      const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&su=${subject}`;
-      setTimeout(() => {
-        window.open(gmailUrl, '_blank');
-      }, 500); // slight delay so they read the toast
-      
-    } catch (err) {
-      console.warn("Rich clipboard failed, falling back to plain text URL", err);
-      // Fallback if browser doesn't support ClipboardItem (e.g. Firefox sometimes)
-      const body = encodeURIComponent(textContent);
-      const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&su=${subject}&body=${body}`;
-      window.open(gmailUrl, '_blank');
-    }
+    // Explicitly open Gmail with pre-filled reliable plain text
+    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&su=${subject}&body=${body}`;
+    window.open(gmailUrl, '_blank');
   };
 
   return (

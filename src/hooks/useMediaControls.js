@@ -86,11 +86,26 @@ export default function useMediaControls(localStreamRef, peersRef, setLocalStrea
          sharedVideoTrack: externalVideoTrack
       };
 
+      // Apply contentHint for optimization (screen share vs media)
+      if (externalVideoTrack) {
+        externalVideoTrack.contentHint = replaceLocalVideo ? 'detail' : 'motion';
+      }
+
       // Replace video track for remote peers immediately
       peersRef.current.forEach(pc => {
         const videoSender = pc.getSenders().find((s) => s.track && s.track.kind === "video");
         if (videoSender && externalVideoTrack) {
-          videoSender.replaceTrack(externalVideoTrack).catch(e => console.warn("Video replaceTrack failed:", e));
+          videoSender.replaceTrack(externalVideoTrack)
+            .then(() => {
+              // Limit bandwidth for mesh architecture to prevent lag
+              const params = videoSender.getParameters();
+              if (params.encodings && params.encodings.length > 0) {
+                // 1.5 Mbps limit for smooth mesh performance
+                params.encodings[0].maxBitrate = 1500000;
+                videoSender.setParameters(params).catch(e => console.warn("Bitrate setting failed", e));
+              }
+            })
+            .catch(e => console.warn("Video replaceTrack failed:", e));
         }
       });
 
@@ -159,7 +174,11 @@ export default function useMediaControls(localStreamRef, peersRef, setLocalStrea
 
     try {
       const screenStream = await navigator.mediaDevices.getDisplayMedia({
-        video: { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30 } },
+        video: { 
+          width: { ideal: 1280 }, 
+          height: { ideal: 720 }, 
+          frameRate: { ideal: 15, max: 24 } 
+        },
         audio: true
       });
       

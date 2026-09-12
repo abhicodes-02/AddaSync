@@ -448,7 +448,7 @@ const VideoGrid = memo(function VideoGrid({
                     event.target.mozCaptureStream;
 
                   if (capture) {
-                    const stream = capture.call(event.target, 30);
+                    const stream = capture.call(event.target, 24);
                     
                     // captureStream tracks might be populated asynchronously
                     const checkAndStart = () => {

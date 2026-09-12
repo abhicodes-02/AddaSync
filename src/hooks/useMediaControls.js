@@ -78,42 +78,54 @@ export default function useMediaControls(localStreamRef, peersRef, setLocalStrea
       const currentCameraTrack = localStreamRef.current?.getVideoTracks()[0];
       const currentMicTrack = localStreamRef.current?.getAudioTracks()[0];
 
-      let mixedAudioTrack = currentMicTrack;
-      let audioCtx = null;
-
-      // Mix external audio and microphone if both exist
-      if (externalAudioTrack && currentMicTrack) {
-        audioCtx = new AudioContext();
-        const dest = audioCtx.createMediaStreamDestination();
-        
-        const micSource = audioCtx.createMediaStreamSource(new MediaStream([currentMicTrack]));
-        const sysSource = audioCtx.createMediaStreamSource(new MediaStream([externalAudioTrack]));
-        
-        micSource.connect(dest);
-        sysSource.connect(dest);
-        
-        mixedAudioTrack = dest.stream.getAudioTracks()[0];
-      } else if (externalAudioTrack) {
-        mixedAudioTrack = externalAudioTrack;
-      }
-
-      // Save context for cleanup
+      // Save context for cleanup early
       shareContext.current = {
          ...shareContext.current,
-         audioCtx,
          originalVideoTrack: currentCameraTrack,
          originalAudioTrack: currentMicTrack,
          sharedVideoTrack: externalVideoTrack
       };
 
-      // Replace tracks for remote peers
+      // Replace video track for remote peers immediately
       peersRef.current.forEach(pc => {
         const videoSender = pc.getSenders().find((s) => s.track && s.track.kind === "video");
-        if (videoSender && externalVideoTrack) videoSender.replaceTrack(externalVideoTrack);
-        
+        if (videoSender && externalVideoTrack) {
+          videoSender.replaceTrack(externalVideoTrack).catch(e => console.warn("Video replaceTrack failed:", e));
+        }
+      });
+
+      let mixedAudioTrack = currentMicTrack;
+      let audioCtx = null;
+
+      // Mix external audio and microphone if both exist
+      try {
+        if (externalAudioTrack && currentMicTrack) {
+          audioCtx = new AudioContext();
+          const dest = audioCtx.createMediaStreamDestination();
+          
+          const micSource = audioCtx.createMediaStreamSource(new MediaStream([currentMicTrack]));
+          const sysSource = audioCtx.createMediaStreamSource(new MediaStream([externalAudioTrack]));
+          
+          micSource.connect(dest);
+          sysSource.connect(dest);
+          
+          mixedAudioTrack = dest.stream.getAudioTracks()[0];
+        } else if (externalAudioTrack) {
+          mixedAudioTrack = externalAudioTrack;
+        }
+      } catch (audioErr) {
+        console.warn("Audio mixing failed, falling back to original audio", audioErr);
+      }
+
+      shareContext.current.audioCtx = audioCtx;
+
+      // Replace audio track for remote peers
+      peersRef.current.forEach(pc => {
         if (mixedAudioTrack) {
           const audioSender = pc.getSenders().find((s) => s.track && s.track.kind === "audio");
-          if (audioSender) audioSender.replaceTrack(mixedAudioTrack);
+          if (audioSender) {
+            audioSender.replaceTrack(mixedAudioTrack).catch(e => console.warn("Audio replaceTrack failed:", e));
+          }
         }
       });
       

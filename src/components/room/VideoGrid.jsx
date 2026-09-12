@@ -448,20 +448,19 @@ const VideoGrid = memo(function VideoGrid({
                     event.target.mozCaptureStream;
 
                   if (capture) {
-                    const stream =
-                      capture.call(
-                        event.target,
-                        30
-                      );
-
-                    if (
-                      startExternalStream
-                    ) {
-                      startExternalStream(
-                        stream,
-                        false
-                      );
-                    }
+                    const stream = capture.call(event.target, 30);
+                    
+                    // captureStream tracks might be populated asynchronously
+                    const checkAndStart = () => {
+                      if (stream.getVideoTracks().length > 0 || stream.getAudioTracks().length > 0) {
+                        if (startExternalStream) {
+                          startExternalStream(stream, false);
+                        }
+                      } else {
+                        setTimeout(checkAndStart, 100);
+                      }
+                    };
+                    checkAndStart();
                   }
                 }}
               />

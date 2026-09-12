@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, memo } from "react";
 import { FiMicOff } from "react-icons/fi";
+import { createPiPStream } from "../../utils/streamCompositor";
 
 function RemoteVideo({
   stream,
@@ -218,10 +219,16 @@ const VideoGrid = memo(function VideoGrid({
   startExternalStream,
   roomState
 }) {
-  const [
-    remoteScreenSharers,
-    setRemoteScreenSharers
-  ] = useState(new Set());
+  const [remoteScreenSharers, setRemoteScreenSharers] = useState(new Set());
+  const pipCleanupRef = useRef(null);
+
+  // When media stops, cleanup pip
+  useEffect(() => {
+    if (!mediaFileUrl && pipCleanupRef.current) {
+      pipCleanupRef.current();
+      pipCleanupRef.current = null;
+    }
+  }, [mediaFileUrl]);
 
   const [
     localBubble,
@@ -451,10 +458,22 @@ const VideoGrid = memo(function VideoGrid({
                     const stream = capture.call(event.target, 24);
                     
                     // captureStream tracks might be populated asynchronously
-                    const checkAndStart = () => {
+                    const checkAndStart = async () => {
                       if (stream.getVideoTracks().length > 0 || stream.getAudioTracks().length > 0) {
                         if (startExternalStream) {
-                          startExternalStream(stream, false);
+                          // Mix the media file stream with the local camera stream so peers can see the face too!
+                          if (localStream) {
+                            try {
+                              const { pipStream, cleanup } = await createPiPStream(stream, localStream);
+                              pipCleanupRef.current = cleanup;
+                              startExternalStream(pipStream, false);
+                            } catch (err) {
+                              console.warn("PiP failed for media sharing, falling back to media only", err);
+                              startExternalStream(stream, false);
+                            }
+                          } else {
+                            startExternalStream(stream, false);
+                          }
                         }
                       } else {
                         setTimeout(checkAndStart, 100);

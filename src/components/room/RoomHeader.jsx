@@ -29,8 +29,24 @@ const RoomHeader = memo(function RoomHeader({
   };
 
   const handleEmailShare = () => {
-    const subject = encodeURIComponent(`Join my AddaSync Video Call`);
-    const body = encodeURIComponent(`I'm inviting you to a video meeting.\n\nClick this link to join directly:\n${fullUrl}\n\nOr enter the room code manually: ${roomId}`);
+    const subject = encodeURIComponent(`📅 You're invited to an AddaSync Meeting!`);
+    const bodyText = `Hi there,
+
+You have been invited to join a secure video conference on AddaSync.
+
+🚀 JOIN MEETING NOW:
+${fullUrl}
+
+-------------------------------------------------
+📌 Meeting Details:
+• Room Code: ${roomId}
+• Platform: AddaSync (No installation required)
+-------------------------------------------------
+
+To join, simply click the link above from any web browser on your computer or mobile device. 
+
+See you in the meeting!`;
+    const body = encodeURIComponent(bodyText);
     
     // Explicitly open Gmail in a new tab
     const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&su=${subject}&body=${body}`;

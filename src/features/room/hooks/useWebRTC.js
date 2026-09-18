@@ -295,6 +295,16 @@ export default function useWebRTC(roomId, userName) {
             const binName = "addasync_" + roomId.toLowerCase().replace(/[^a-z0-9]/g, "");
             await fetch(`https://filebin.net/${binName}`, { method: "DELETE" });
           } catch(e) {}
+        // 3. Delete Main Room Document
+        try {
+          await deleteDoc(doc(db, "calls", roomId));
+        } catch (e) {
+          console.warn("Failed to delete room document:", e);
+        }
+      }
+    } catch (err) {
+      console.warn("Participant cleanup error:", err);
+    }
   }, [roomId]);
 
   const startWebRTC = useCallback(async (uid, activeName) => {

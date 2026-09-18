@@ -1,5 +1,5 @@
-import { memo } from "react";
-import { FiX, FiSend, FiMessageCircle, FiUsers } from "react-icons/fi";
+import { memo, useState, useRef } from "react";
+import { FiX, FiSend, FiMessageCircle, FiUsers, FiPaperclip, FiDownload, FiFile } from "react-icons/fi";
 
 const SidePanel = memo(function SidePanel({
   activeTab,
@@ -25,6 +25,35 @@ const SidePanel = memo(function SidePanel({
     { id: "local", name: `${userName} (You)` },
     ...Array.from(participantNames.entries()).map(([id, name]) => ({ id, name }))
   ];
+
+  const fileInputRef = useRef(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleUpload = async (file) => {
+    if (!sendFile) return;
+    setIsUploading(true);
+    setUploadProgress(0);
+    try {
+      await sendFile(file, (p) => setUploadProgress(p));
+    } catch (err) {
+      console.error(err);
+      alert("Failed to upload file");
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+    }
+  };
+
+  const handleDragOver = (e) => { e.preventDefault(); setIsDragging(true); };
+  const handleDragLeave = (e) => { e.preventDefault(); setIsDragging(false); };
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) handleUpload(file);
+  };
 
   return (
     <div className="
@@ -84,23 +113,43 @@ const SidePanel = memo(function SidePanel({
         {activeTab === "chat" ? (
           <>
             {/* Chat Input (Fixed at Top) */}
-            <div className="shrink-0 p-4 bg-white/[0.01] border-b border-white/5">
+            <div className="shrink-0 p-4 bg-white/[0.01] border-b border-white/5 relative">
+              {isUploading && (
+                <div className="absolute top-0 left-0 w-full h-1 bg-slate-800">
+                  <div className="h-full bg-cyan-500 transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
+                </div>
+              )}
               <div className="flex gap-2 items-end bg-black/40 rounded-[1.25rem] border border-white/10 p-1.5 focus-within:border-cyan-500/50 focus-within:ring-1 focus-within:ring-cyan-500/50 transition-all">
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="h-9 w-9 shrink-0 flex items-center justify-center rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                >
+                  <FiPaperclip size={16} />
+                </button>
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) handleUpload(f);
+                  }} 
+                  className="hidden" 
+                />
                 <input
                   id="chatMessage"
                   name="chatMessage"
                   value={msg}
                   onChange={(e) => setMsg(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-                  placeholder="Send a message..."
+                  placeholder="Type or drop a file..."
                   className="
-                    flex-1 bg-transparent px-3 py-2 outline-none
+                    flex-1 bg-transparent px-1 py-2 outline-none
                     text-sm text-white placeholder:text-slate-500
                   "
                   autoComplete="off"
                 />
                 <button
-                  onClick={sendMessage}
+                  onClick={() => sendMessage()}
                   disabled={!msg.trim()}
                   className="
                     h-9 w-9 shrink-0 rounded-xl
@@ -115,7 +164,20 @@ const SidePanel = memo(function SidePanel({
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto scrollbar-thin p-4 space-y-4 flex flex-col">
+            <div 
+              className="flex-1 overflow-y-auto scrollbar-thin p-4 space-y-4 flex flex-col relative"
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
+              {isDragging && (
+                <div className="absolute inset-0 z-10 bg-cyan-950/80 backdrop-blur-sm border-2 border-dashed border-cyan-500 rounded-xl flex items-center justify-center m-2">
+                  <div className="text-center text-cyan-400">
+                    <FiDownload size={32} className="mx-auto mb-2 animate-bounce" />
+                    <p className="font-semibold">Drop file to upload</p>
+                  </div>
+                </div>
+              )}
               <div ref={messagesStartRef} />
               {messages.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-slate-500 gap-3 mt-10">
@@ -124,7 +186,7 @@ const SidePanel = memo(function SidePanel({
                   </div>
                   <p className="text-sm font-medium">No messages yet</p>
                   <p className="text-xs text-slate-600 text-center px-8">
-                    Messages here are visible to everyone in the call.
+                    Messages and files here are visible to everyone in the call.
                   </p>
                 </div>
               ) : (
@@ -140,15 +202,46 @@ const SidePanel = memo(function SidePanel({
                           {isMe ? "You" : m.sender || "Anonymous"} • {m.time ? formatTime(m.time) : ""}
                         </span>
                       )}
-                      <div className={`
-                        max-w-[85%] px-4 py-2.5 text-sm leading-relaxed
-                        ${isMe 
-                          ? "bg-cyan-600 text-white rounded-2xl rounded-tr-sm shadow-md shadow-cyan-900/20" 
-                          : "bg-slate-800/80 text-slate-100 rounded-2xl rounded-tl-sm border border-white/5 shadow-sm"
-                        }
-                      `}>
-                        {m.text}
-                      </div>
+                      
+                      {m.type === 'file' ? (
+                        <div className={`
+                          max-w-[85%] p-1 text-sm leading-relaxed
+                          ${isMe 
+                            ? "bg-cyan-600/20 border border-cyan-500/30 rounded-2xl rounded-tr-sm" 
+                            : "bg-slate-800/80 border border-white/5 rounded-2xl rounded-tl-sm"
+                          }
+                        `}>
+                           <div className="flex items-center gap-3 p-2">
+                             <div className="w-10 h-10 rounded-xl bg-black/30 flex items-center justify-center text-cyan-400 shrink-0">
+                               <FiFile size={20} />
+                             </div>
+                             <div className="min-w-0 flex-1 pr-2">
+                               <p className="text-white font-medium truncate text-sm" title={m.fileName}>{m.fileName}</p>
+                               <p className="text-slate-400 text-[10px] uppercase">{(m.fileSize / 1024 / 1024).toFixed(2)} MB</p>
+                             </div>
+                             <a 
+                               href={m.fileUrl} 
+                               target="_blank" 
+                               rel="noopener noreferrer"
+                               download={m.fileName}
+                               className="h-8 w-8 rounded-lg bg-black/40 hover:bg-black/60 flex items-center justify-center text-white transition-colors shrink-0"
+                               title="Download File"
+                             >
+                               <FiDownload size={14} />
+                             </a>
+                           </div>
+                        </div>
+                      ) : (
+                        <div className={`
+                          max-w-[85%] px-4 py-2.5 text-sm leading-relaxed break-words
+                          ${isMe 
+                            ? "bg-cyan-600 text-white rounded-2xl rounded-tr-sm shadow-md shadow-cyan-900/20" 
+                            : "bg-slate-800/80 text-slate-100 rounded-2xl rounded-tl-sm border border-white/5 shadow-sm"
+                          }
+                        `}>
+                          {m.text}
+                        </div>
+                      )}
                     </div>
                   );
                 })

@@ -105,7 +105,7 @@ export default function VideoRoom() {
     startExternalStream,
   } = useMediaControls(localStreamRef, peersRef, setLocalStream);
 
-  const { messages, msg, setMsg, sendMessage, messagesStartRef } = useChat(
+  const { messages, msg, setMsg, sendMessage, sendFile, messagesStartRef } = useChat(
     roomId,
     localName
   );
@@ -366,6 +366,7 @@ export default function VideoRoom() {
         msg={msg}
         setMsg={setMsg}
         sendMessage={sendMessage}
+        sendFile={sendFile}
         messagesStartRef={messagesStartRef}
         participantNames={participantNames}
         userName={localName}

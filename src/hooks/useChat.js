@@ -44,18 +44,53 @@ export default function useChat(roomId, userName) {
     messagesStartRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const sendMessage = useCallback(async () => {
-    if (!msg.trim()) return;
+  const sendMessage = useCallback(async (customData = null) => {
+    if (!msg.trim() && !customData) return;
 
     const chatRef = collection(db, "calls", roomId, "chat");
     await addDoc(chatRef, {
-      text: msg,
+      ...(customData || { text: msg }),
       sender: userName || "Anonymous",
       time: Date.now(),
     });
 
-    setMsg("");
+    if (!customData) setMsg("");
   }, [msg, roomId, userName]);
 
-  return { messages, msg, setMsg, sendMessage, messagesStartRef };
+  const sendFile = useCallback(async (file, onProgress) => {
+    const { ref, uploadBytesResumable, getDownloadURL } = await import("firebase/storage");
+    const { storage } = await import("../firebase/firebase");
+
+    // Create a unique filename
+    const uniqueName = `${Date.now()}_${file.name}`;
+    const storageRef = ref(storage, `rooms/${roomId}/files/${uniqueName}`);
+
+    const uploadTask = uploadBytesResumable(storageRef, file);
+
+    return new Promise((resolve, reject) => {
+      uploadTask.on(
+        "state_changed",
+        (snapshot) => {
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          if (onProgress) onProgress(progress);
+        },
+        (error) => {
+          console.error("Upload failed", error);
+          reject(error);
+        },
+        async () => {
+          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+          await sendMessage({
+            type: "file",
+            fileName: file.name,
+            fileSize: file.size,
+            fileUrl: downloadURL,
+          });
+          resolve(downloadURL);
+        }
+      );
+    });
+  }, [roomId, sendMessage]);
+
+  return { messages, msg, setMsg, sendMessage, sendFile, messagesStartRef };
 }

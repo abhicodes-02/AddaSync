@@ -77,7 +77,7 @@ const ControlDock = memo(function ControlDock({
   };
 
   return (
-    <div className="absolute bottom-6 sm:bottom-8 left-1/2 -translate-x-1/2 z-40">
+    <div className="theme-ui absolute bottom-6 sm:bottom-8 left-1/2 -translate-x-1/2 z-40">
       <div className="
         backdrop-blur-2xl bg-slate-900/60
         border border-white/10 shadow-[0_8px_32px_0_rgba(0,0,0,0.36)]

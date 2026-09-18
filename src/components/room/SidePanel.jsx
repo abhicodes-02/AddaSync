@@ -58,7 +58,7 @@ const SidePanel = memo(function SidePanel({
 
   return (
     <div className="
-        absolute lg:relative right-0 top-0
+        theme-ui absolute lg:relative right-0 top-0
         h-full w-full sm:w-[380px]
         backdrop-blur-3xl bg-slate-900/80
         border-l border-white/5 shadow-2xl

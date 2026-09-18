@@ -266,7 +266,7 @@ export default function VideoRoom() {
 
   return (
     <div 
-      className={`h-[100dvh] w-screen bg-[#0a0a0a] text-white flex overflow-hidden relative font-sans theme-container`}
+      className={`h-[100dvh] w-screen bg-[#0a0a0a] text-white flex overflow-hidden relative font-sans`}
       style={{ '--theme-hue': hueShift }}
     >
       
@@ -299,7 +299,7 @@ export default function VideoRoom() {
       
       {/* Host Knocking Notifications */}
       {isHost && pendingKnockers.length > 0 && (
-        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 w-full max-w-sm px-4 pointer-events-none">
+        <div className="theme-ui absolute top-20 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 w-full max-w-sm px-4 pointer-events-none">
           {pendingKnockers.map(knocker => (
             <div key={knocker.uid} className="bg-black/80 backdrop-blur-xl border border-amber-500/30 shadow-2xl p-4 rounded-2xl flex items-center justify-between pointer-events-auto animate-in slide-in-from-top-4 fade-in duration-300">
               <div className="flex items-center gap-3">

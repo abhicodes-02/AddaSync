@@ -9,8 +9,8 @@ import {
   doc,
   setDoc,
 } from "firebase/firestore";
-import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
-import { db, storage } from "../../../shared/lib/firebase";
+
+import { db } from "../../../shared/lib/firebase";
 
 export default function useChat(roomId, userName) {
   const [messages, setMessages] = useState([]);
@@ -89,38 +89,53 @@ export default function useChat(roomId, userName) {
     return new Promise((resolve, reject) => {
       if (!file) return reject(new Error("No file selected"));
       
-      const fileId = `${Date.now()}_${Math.random().toString(36).substring(7)}_${file.name}`;
-      const fileRef = ref(storage, `chat_files/${roomId}/${fileId}`);
-      
-      const uploadTask = uploadBytesResumable(fileRef, file);
+      const formData = new FormData();
+      formData.append("file", file);
 
-      uploadTask.on(
-        "state_changed",
-        (snapshot) => {
-          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          if (onProgress) onProgress(progress);
-        },
-        (error) => {
-          reject(error);
-        },
-        async () => {
-          try {
-            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-            await sendMessage({
-              type: "file",
-              fileName: file.name,
-              fileSize: file.size,
-              fileUrl: downloadURL,
-            });
-            resolve(downloadURL);
-          } catch (error) {
-            reject(error);
-          }
+      const xhr = new XMLHttpRequest();
+      
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable && onProgress) {
+          const progress = (event.loaded / event.total) * 100;
+          onProgress(progress);
         }
-      );
+      };
+      
+      xhr.onload = async () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const response = JSON.parse(xhr.responseText);
+            if (response.status === "success") {
+              // response.data.url looks like: https://tmpfiles.org/123456/file.png
+              // We need to inject '/dl/' to get the direct download link
+              const directUrl = response.data.url.replace("tmpfiles.org/", "tmpfiles.org/dl/");
+              
+              await sendMessage({
+                type: "file",
+                fileName: file.name,
+                fileSize: file.size,
+                fileUrl: directUrl,
+              });
+              resolve(directUrl);
+            } else {
+              reject(new Error("Upload failed"));
+            }
+          } catch (err) {
+            reject(new Error("Failed to parse response"));
+          }
+        } else {
+          reject(new Error("Upload failed with status: " + xhr.status));
+        }
+      };
+      
+      xhr.onerror = () => reject(new Error("Network error during upload"));
+      
+      xhr.open("POST", "https://tmpfiles.org/api/v1/upload", true);
+      xhr.send(formData);
     });
-  }, [sendMessage, roomId]);
+  }, [sendMessage]);
 
   return { messages, msg, setMsg, sendMessage, sendFile, messagesStartRef, typingUsers, setTyping };
 }
+
 

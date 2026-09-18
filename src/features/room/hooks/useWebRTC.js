@@ -1,8 +1,8 @@
 // src/hooks/useWebRTC.js
 
 import { useCallback, useRef, useState, useEffect } from "react";
-import { db, storage } from "../../../shared/lib/firebase";
-import { ref as storageRef, listAll, deleteObject } from "firebase/storage";
+import { db } from "../../../shared/lib/firebase";
+
 import {
   doc,
   setDoc,

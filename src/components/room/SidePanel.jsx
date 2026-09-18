@@ -8,6 +8,7 @@ const SidePanel = memo(function SidePanel({
   msg,
   setMsg,
   sendMessage,
+  sendFile,
   messagesStartRef,
   userName,
   participantNames,

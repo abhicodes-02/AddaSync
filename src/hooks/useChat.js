@@ -58,39 +58,51 @@ export default function useChat(roomId, userName) {
   }, [msg, roomId, userName]);
 
   const sendFile = useCallback(async (file, onProgress) => {
-    const { ref, uploadBytesResumable, getDownloadURL } = await import("firebase/storage");
-    const { storage } = await import("../firebase/firebase");
-
-    // Create a unique filename
-    const uniqueName = `${Date.now()}_${file.name}`;
-    const storageRef = ref(storage, `rooms/${roomId}/files/${uniqueName}`);
-
-    const uploadTask = uploadBytesResumable(storageRef, file);
-
     return new Promise((resolve, reject) => {
-      uploadTask.on(
-        "state_changed",
-        (snapshot) => {
-          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", "https://tmpfiles.org/api/v1/upload", true);
+
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          const progress = (event.loaded / event.total) * 100;
           if (onProgress) onProgress(progress);
-        },
-        (error) => {
-          console.error("Upload failed", error);
-          reject(error);
-        },
-        async () => {
-          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-          await sendMessage({
-            type: "file",
-            fileName: file.name,
-            fileSize: file.size,
-            fileUrl: downloadURL,
-          });
-          resolve(downloadURL);
         }
-      );
+      };
+
+      xhr.onload = async () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const response = JSON.parse(xhr.responseText);
+            // tmpfiles returns url like https://tmpfiles.org/123/file.ext
+            // to download directly, it needs to be https://tmpfiles.org/dl/123/file.ext
+            const rawUrl = response.data.url;
+            const downloadURL = rawUrl.replace("tmpfiles.org/", "tmpfiles.org/dl/");
+            
+            await sendMessage({
+              type: "file",
+              fileName: file.name,
+              fileSize: file.size,
+              fileUrl: downloadURL,
+            });
+            resolve(downloadURL);
+          } catch (e) {
+            reject(new Error("Failed to parse upload response"));
+          }
+        } else {
+          reject(new Error("Upload failed with status " + xhr.status));
+        }
+      };
+
+      xhr.onerror = () => {
+        reject(new Error("Network error during upload"));
+      };
+
+      xhr.send(formData);
     });
-  }, [roomId, sendMessage]);
+  }, [sendMessage]);
 
   return { messages, msg, setMsg, sendMessage, sendFile, messagesStartRef };
 }

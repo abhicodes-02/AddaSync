@@ -1,7 +1,8 @@
 // src/hooks/useWebRTC.js
 
 import { useCallback, useRef, useState, useEffect } from "react";
-import { db } from "../firebase/firebase";
+import { db, storage } from "../firebase/firebase";
+import { ref as storageRef, listAll, deleteObject } from "firebase/storage";
 import {
   doc,
   setDoc,
@@ -220,6 +221,8 @@ export default function useWebRTC(roomId, userName) {
   const cleanup = useCallback(async () => {
     startedRef.current = false;
 
+    const isLastPerson = peersRef.current.size === 0;
+
     unsubscribers.current.forEach(unsub => {
       try { unsub(); } catch {}
     });
@@ -274,6 +277,34 @@ export default function useWebRTC(roomId, userName) {
         );
 
         await deleteDoc(myPartRef);
+      }
+      
+      // If we are the last person in the room (or the only person), wipe out all room data!
+      if (isLastPerson) {
+        // 1. Delete Chat Messages
+        try {
+          const chatSnap = await getDocs(collection(db, "calls", roomId, "chat"));
+          const deletePromises = chatSnap.docs.map(d => deleteDoc(d.ref));
+          await Promise.all(deletePromises);
+        } catch (e) {
+          console.warn("Failed to delete chat messages:", e);
+        }
+
+        // 2. Delete Uploaded Files in Storage
+        try {
+          const folderRef = storageRef(storage, `chat_files/${roomId}`);
+          const fileList = await listAll(folderRef);
+          const deleteFilePromises = fileList.items.map(fileRef => deleteObject(fileRef));
+          await Promise.all(deleteFilePromises);
+        } catch (e) {
+          console.warn("Failed to delete storage files:", e);
+        }
+        // 3. Delete Main Room Document
+        try {
+          await deleteDoc(doc(db, "calls", roomId));
+        } catch (e) {
+          console.warn("Failed to delete room document:", e);
+        }
       }
     } catch (err) {
       console.warn("Participant cleanup error:", err);

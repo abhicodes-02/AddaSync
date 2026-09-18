@@ -513,7 +513,12 @@ const VideoGrid = memo(function VideoGrid({
             </div>
 
           ) : pinnedUid ? (
-            <div className="w-full h-full relative rounded-xl sm:rounded-2xl overflow-hidden ring-1 ring-white/10 shadow-2xl bg-black">
+            <div 
+              className={`w-full h-full relative rounded-xl sm:rounded-2xl overflow-hidden shadow-2xl bg-black transition-all duration-100 ${pinnedUid === "local" && !localIsMuted && localVolume > 10 ? 'border-2 border-cyan-400' : 'ring-1 ring-white/10'}`}
+              style={{
+                boxShadow: (pinnedUid === "local" && !localIsMuted && localVolume > 10) ? `0 0 ${localVolume}px rgba(6, 182, 212, ${localVolume / 100})` : 'none'
+              }}
+            >
 
               <div className="absolute top-4 left-4 z-20 flex items-center gap-2 sm:gap-3 pointer-events-none">
                 <div className="bg-black/70 backdrop-blur-md px-3 py-1.5 rounded-lg text-white text-[13px] font-medium border border-white/10 flex items-center gap-2 shadow-xl">
@@ -528,14 +533,25 @@ const VideoGrid = memo(function VideoGrid({
               </div>
 
               {pinnedUid === "local" ? (
-                <video
-                  ref={localVideoRef}
-                  autoPlay
-                  muted
-                  playsInline
-                  disablePictureInPicture
-                  className="w-full h-full object-contain scale-x-[-1]"
-                />
+                localIsCameraOff ? (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#111]">
+                    <div 
+                      className="w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-gradient-to-br from-cyan-600 to-blue-700 flex items-center justify-center text-4xl sm:text-5xl font-bold text-white shadow-lg transition-transform duration-75"
+                      style={{ transform: (!localIsMuted && localVolume > 10) ? `scale(${1 + (localVolume / 400)})` : 'scale(1)' }}
+                    >
+                      {localName ? localName.charAt(0).toUpperCase() : "Y"}
+                    </div>
+                  </div>
+                ) : (
+                  <video
+                    ref={localVideoRef}
+                    autoPlay
+                    muted
+                    playsInline
+                    disablePictureInPicture
+                    className="w-full h-full object-contain scale-x-[-1]"
+                  />
+                )
               ) : (
                 <RemoteVideo
                   stream={remoteStreams.get(pinnedUid)}
@@ -769,11 +785,20 @@ const VideoGrid = memo(function VideoGrid({
       <div className="absolute bottom-0 inset-x-0 h-56 bg-gradient-to-t from-black/90 to-transparent pointer-events-none z-20" />
 
       {/* Self-view */}
-      <div className="absolute z-30 overflow-hidden border border-white/10 shadow-2xl shadow-black/50 top-20 sm:top-auto sm:bottom-32 right-4 sm:right-8 w-28 h-40 sm:w-56 sm:h-36 rounded-2xl transition-transform hover:scale-[1.02] duration-300 bg-slate-900 flex items-center justify-center group">
+      <div 
+        className="absolute z-30 overflow-hidden shadow-2xl top-20 sm:top-auto sm:bottom-32 right-4 sm:right-8 w-28 h-40 sm:w-56 sm:h-36 rounded-2xl transition-all duration-100 bg-slate-900 flex items-center justify-center group border"
+        style={{
+          borderColor: (!localIsMuted && localVolume > 10) ? '#22d3ee' : 'rgba(255,255,255,0.1)',
+          boxShadow: (!localIsMuted && localVolume > 10) ? `0 0 ${localVolume}px rgba(6, 182, 212, ${localVolume / 100})` : 'rgba(0,0,0,0.5) 0px 25px 50px -12px'
+        }}
+      >
 
         {localIsCameraOff ? (
           <div className="flex flex-col items-center gap-1">
-            <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-cyan-600 to-blue-700 flex items-center justify-center text-xl sm:text-2xl font-bold text-white shadow-lg">
+            <div 
+              className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-cyan-600 to-blue-700 flex items-center justify-center text-xl sm:text-2xl font-bold text-white shadow-lg transition-transform duration-75"
+              style={{ transform: (!localIsMuted && localVolume > 10) ? `scale(${1 + (localVolume / 400)})` : 'scale(1)' }}
+            >
               {localName
                 ? localName
                     .charAt(0)

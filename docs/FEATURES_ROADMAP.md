@@ -35,10 +35,7 @@ The current Video Conferencing feature will become a robust built-in tool within
 - **Concept:** Press and hold a participant's video tile to speak *only* to them. 
 - **Tech:** Can be implemented using WebRTC Data Channels.
 
-### 2. Laser Pointer on Screen Share (Collaborative Pointing) 🔴
-- **Concept:** When someone shares a screen, other participants can click and drag their mouse to show a "Red Laser Dot" with their name on the shared screen.
-
-### 3. "True Sync" Watch Party (YouTube/Spotify Sync) 🍿
+### 2. "True Sync" Watch Party (YouTube/Spotify Sync) 🍿
 - **Concept:** Paste a YouTube link in the chat to open a floating video player that synchronizes perfectly for everyone in the room.
 
 

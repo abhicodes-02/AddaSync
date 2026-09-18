@@ -6,14 +6,40 @@ import {
   onSnapshot,
   orderBy,
   query,
+  doc,
+  setDoc,
 } from "firebase/firestore";
 
 export default function useChat(roomId, userName) {
   const [messages, setMessages] = useState([]);
   const [msg, setMsg] = useState("");
+  const [typingUsers, setTypingUsers] = useState([]);
   const messagesStartRef = useRef(null);
 
   const prevCountRef = useRef(0);
+
+  // Typing Listener
+  useEffect(() => {
+    if (!roomId) return;
+    const typingRef = collection(db, "calls", roomId, "typing");
+    const unsub = onSnapshot(typingRef, (snap) => {
+      const now = Date.now();
+      const typing = [];
+      snap.forEach(d => {
+        if (d.id !== userName && now - d.data().time < 4000) {
+          typing.push(d.id);
+        }
+      });
+      setTypingUsers(typing);
+    });
+    return () => unsub();
+  }, [roomId, userName]);
+
+  const setTyping = useCallback(() => {
+    if (!userName || !roomId) return;
+    const ref = doc(db, "calls", roomId, "typing", userName);
+    setDoc(ref, { time: Date.now() }, { merge: true }).catch(() => {});
+  }, [roomId, userName]);
 
   useEffect(() => {
     const chatRef = collection(db, "calls", roomId, "chat");
@@ -104,5 +130,5 @@ export default function useChat(roomId, userName) {
     });
   }, [sendMessage]);
 
-  return { messages, msg, setMsg, sendMessage, sendFile, messagesStartRef };
+  return { messages, msg, setMsg, sendMessage, sendFile, messagesStartRef, typingUsers, setTyping };
 }

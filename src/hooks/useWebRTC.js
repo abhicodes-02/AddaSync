@@ -1,6 +1,6 @@
 // src/hooks/useWebRTC.js
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState, useEffect } from "react";
 import { db } from "../firebase/firebase";
 import {
   doc,
@@ -56,6 +56,7 @@ export default function useWebRTC(roomId, userName) {
   const [remoteStreams, setRemoteStreams] = useState(new Map());
   const [participantNames, setParticipantNames] = useState(new Map());
   const [participantStates, setParticipantStates] = useState(new Map());
+  const [networkQuality, setNetworkQuality] = useState(new Map());
   const [connectionState, setConnectionState] = useState("new");
   const [error, setError] = useState(null);
   
@@ -1035,12 +1036,50 @@ export default function useWebRTC(roomId, userName) {
     }
   };
 
+  // Network Stats Poller
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      if (peersRef.current.size === 0) return;
+      
+      const newQuality = new Map();
+      for (const [uid, pc] of peersRef.current.entries()) {
+        if (pc.connectionState !== 'connected') continue;
+        
+        try {
+          const stats = await pc.getStats();
+          let packetsLost = 0;
+          let packetsReceived = 0;
+          let jitter = 0;
+          
+          stats.forEach(report => {
+            if (report.type === 'inbound-rtp' && report.kind === 'video') {
+              packetsLost += report.packetsLost || 0;
+              packetsReceived += report.packetsReceived || 0;
+              jitter = Math.max(jitter, report.jitter || 0);
+            }
+          });
+          
+          const lossRatio = packetsReceived > 0 ? packetsLost / packetsReceived : 0;
+          let quality = 'green';
+          if (lossRatio > 0.02 || jitter > 0.05) quality = 'yellow';
+          if (lossRatio > 0.1 || jitter > 0.15) quality = 'red';
+          
+          newQuality.set(uid, quality);
+        } catch (e) {}
+      }
+      setNetworkQuality(newQuality);
+    }, 3000);
+    
+    return () => clearInterval(interval);
+  }, []);
+
   return {
     localStream,
     setLocalStream,
     remoteStreams,
     participantNames,
     participantStates,
+    networkQuality,
     connectionState,
     error,
     peersRef,

@@ -1,8 +1,7 @@
-// src/components/VideoGrid.jsx
-
 import { useEffect, useRef, useState, memo } from "react";
 import { FiMicOff } from "react-icons/fi";
 import { createPiPStream } from "../../utils/streamCompositor";
+import useAudioVolume from "../../hooks/useAudioVolume";
 
 function RemoteVideo({
   stream,
@@ -12,11 +11,16 @@ function RemoteVideo({
   hideName,
   isMuted,
   isCameraOff,
-  forceMuted
+  forceMuted,
+  quality = 'green'
 }) {
   const videoRef = useRef(null);
   const [bubble, setBubble] = useState(null);
   const bubbleTimerRef = useRef(null);
+  const volume = useAudioVolume(stream);
+  const isSpeaking = !isMuted && volume > 10;
+
+  const qualityColor = quality === 'green' ? 'bg-emerald-500' : quality === 'yellow' ? 'bg-yellow-500' : 'bg-red-500';
 
   useEffect(() => {
     const handleBubble = (event) => {
@@ -126,7 +130,12 @@ function RemoteVideo({
         isThumbnail
           ? "rounded-xl"
           : "rounded-2xl"
-      } overflow-hidden border border-white/10 bg-[#111] shadow-xl flex items-center justify-center`}
+      } overflow-hidden bg-[#111] shadow-xl flex items-center justify-center transition-all duration-100 ${
+        isSpeaking ? "border-2 border-cyan-400" : "border border-white/10"
+      }`}
+      style={{
+        boxShadow: isSpeaking ? `0 0 ${volume}px rgba(6, 182, 212, ${volume / 100})` : "none",
+      }}
     >
       {/* Keep this element mounted so remote audio keeps playing. */}
       <video
@@ -149,7 +158,12 @@ function RemoteVideo({
       {/* Camera-off avatar is visual only. Audio still comes from <video>. */}
       {isCameraOff && (
         <div className="relative z-10 flex flex-col items-center gap-3">
-          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-cyan-600 to-blue-700 flex items-center justify-center text-3xl sm:text-4xl font-bold text-white shadow-lg">
+          <div 
+            className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-cyan-600 to-blue-700 flex items-center justify-center text-3xl sm:text-4xl font-bold text-white shadow-lg transition-transform duration-75"
+            style={{
+               transform: isSpeaking ? `scale(${1 + (volume / 400)})` : "scale(1)"
+            }}
+          >
             {name
               ? name.charAt(0).toUpperCase()
               : "?"}
@@ -181,15 +195,26 @@ function RemoteVideo({
               size={14}
             />
           )}
+          
+          <div className="flex items-end gap-[1px] ml-1 h-3" title={`Network: ${quality}`}>
+            <div className={`w-[2px] rounded-sm ${qualityColor} h-1/3`} />
+            <div className={`w-[2px] rounded-sm ${qualityColor} h-2/3 ${quality === 'red' ? 'opacity-30' : ''}`} />
+            <div className={`w-[2px] rounded-sm ${qualityColor} h-full ${quality !== 'green' ? 'opacity-30' : ''}`} />
+          </div>
         </div>
       )}
 
       {hideName && isMuted && (
-        <div className="absolute top-2 right-2 z-20 bg-black/60 backdrop-blur-md p-1.5 rounded-full border border-white/10 shadow-lg">
+        <div className="absolute top-2 right-2 z-20 bg-black/60 backdrop-blur-md p-1.5 rounded-full border border-white/10 shadow-lg flex items-center gap-2">
           <FiMicOff
             className="text-red-500"
             size={12}
           />
+          <div className="flex items-end gap-[1px] h-2.5" title={`Network: ${quality}`}>
+            <div className={`w-[2px] rounded-sm ${qualityColor} h-1/3`} />
+            <div className={`w-[2px] rounded-sm ${qualityColor} h-2/3 ${quality === 'red' ? 'opacity-30' : ''}`} />
+            <div className={`w-[2px] rounded-sm ${qualityColor} h-full ${quality !== 'green' ? 'opacity-30' : ''}`} />
+          </div>
         </div>
       )}
 
@@ -208,6 +233,7 @@ const VideoGrid = memo(function VideoGrid({
   remoteStreams,
   participantNames,
   participantStates,
+  networkQuality,
   localName,
   localIsMuted,
   localIsCameraOff,
@@ -221,6 +247,7 @@ const VideoGrid = memo(function VideoGrid({
 }) {
   const [remoteScreenSharers, setRemoteScreenSharers] = useState(new Set());
   const pipCleanupRef = useRef(null);
+  const localVolume = useAudioVolume(localStream);
 
   // When media stops, cleanup pip
   useEffect(() => {
@@ -517,6 +544,7 @@ const VideoGrid = memo(function VideoGrid({
                   hideName={true}
                   isMuted={participantStates?.get(pinnedUid)?.isMuted}
                   isCameraOff={false}
+                  quality={networkQuality?.get(pinnedUid) || 'green'}
                 />
               )}
             </div>
@@ -555,11 +583,19 @@ const VideoGrid = memo(function VideoGrid({
 
           {/* Local participant */}
           {pinnedUid !== "local" && (
-          <div className="w-32 sm:w-40 h-20 sm:h-24 shrink-0 relative rounded-xl overflow-hidden ring-1 ring-white/10 shadow-xl bg-slate-900 group flex items-center justify-center">
+          <div className="w-32 sm:w-40 h-20 sm:h-24 shrink-0 relative rounded-xl overflow-hidden shadow-xl bg-slate-900 group flex items-center justify-center transition-all duration-100 border"
+               style={{
+                 borderColor: (!localIsMuted && localVolume > 10) ? '#22d3ee' : 'rgba(255,255,255,0.1)',
+                 boxShadow: (!localIsMuted && localVolume > 10) ? `0 0 ${localVolume}px rgba(6, 182, 212, ${localVolume / 100})` : 'none'
+               }}
+          >
 
             {localIsCameraOff ? (
               <div className="flex flex-col items-center gap-1">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-600 to-blue-700 flex items-center justify-center text-xl font-bold text-white shadow-lg">
+                <div 
+                  className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-600 to-blue-700 flex items-center justify-center text-xl font-bold text-white shadow-lg transition-transform duration-75"
+                  style={{ transform: (!localIsMuted && localVolume > 10) ? `scale(${1 + (localVolume / 400)})` : 'scale(1)' }}
+                >
                   {localName
                     ? localName
                         .charAt(0)
@@ -616,6 +652,7 @@ const VideoGrid = memo(function VideoGrid({
                     isMuted={isFocusMuted || pState.isMuted}
                     isCameraOff={pState.isCameraOff}
                     forceMuted={isFocusMuted}
+                    quality={networkQuality?.get(uid) || 'green'}
                   />
                 </div>
               );
@@ -717,6 +754,7 @@ const VideoGrid = memo(function VideoGrid({
                     isCameraOff={
                       pState.isCameraOff
                     }
+                    quality={networkQuality?.get(uid) || 'green'}
                   />
                 </div>
               );

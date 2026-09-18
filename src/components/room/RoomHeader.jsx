@@ -1,6 +1,7 @@
 import { FiCopy, FiMessageCircle, FiUsers, FiMail } from "react-icons/fi";
 import { memo } from "react";
 import { useToast } from "../ui/Toast";
+import { motion } from "framer-motion";
 
 const STATE_LABELS = {
   new: { text: "Initializing", color: "bg-yellow-500" },
@@ -91,7 +92,12 @@ const RoomHeader = memo(function RoomHeader({
   return (
     <>
       {/* Mobile Top Bar (Hidden on Desktop) */}
-      <div className="theme-ui sm:hidden absolute top-4 left-4 right-4 z-40 flex items-center justify-between h-12 px-3 rounded-2xl backdrop-blur-2xl bg-slate-900/60 border border-white/10 shadow-2xl">
+      <motion.div 
+        initial={{ y: -100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ type: "spring", damping: 20, stiffness: 200 }}
+        className="theme-ui sm:hidden absolute top-4 left-4 right-4 z-40 flex items-center justify-between h-12 px-3 rounded-2xl backdrop-blur-2xl bg-slate-900/60 border border-white/10 shadow-2xl"
+      >
         <div className="flex items-center gap-2">
           <img src="/logo.jpg" alt="AddaSync Logo" className="w-7 h-7 rounded-lg object-cover shadow-sm preserve-color" />
           <span className="text-xs font-semibold text-white tracking-wide truncate max-w-[90px]">{roomId}</span>
@@ -114,10 +120,15 @@ const RoomHeader = memo(function RoomHeader({
             <FiMessageCircle size={16} />
           </button>
         </div>
-      </div>
+      </motion.div>
 
       {/* Desktop Bottom Left: Info & Sharing (Hidden on Mobile) */}
-      <div className="theme-ui hidden sm:flex absolute bottom-8 left-6 z-40 items-center gap-4 h-12 pl-1.5 pr-5 rounded-full backdrop-blur-2xl bg-slate-900/60 border border-white/10 shadow-2xl">
+      <motion.div 
+        initial={{ y: 100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ type: "spring", damping: 20, stiffness: 200, delay: 0.2 }}
+        className="theme-ui hidden sm:flex absolute bottom-8 left-6 z-40 items-center gap-4 h-12 pl-1.5 pr-5 rounded-full backdrop-blur-2xl bg-slate-900/60 border border-white/10 shadow-2xl"
+      >
         <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-500/20 to-blue-500/20 p-0.5 flex items-center justify-center shadow-lg overflow-hidden preserve-color">
           <img src="/logo.jpg" alt="AddaSync Logo" className="w-full h-full object-cover rounded-[0.6rem]" />
         </div>
@@ -131,10 +142,15 @@ const RoomHeader = memo(function RoomHeader({
           <FiMail size={14} />
           <span>Email</span>
         </button>
-      </div>
+      </motion.div>
 
       {/* Desktop Bottom Right: Participants & Chat Toggle (Hidden on Mobile) */}
-      <div className="theme-ui hidden sm:flex absolute bottom-8 right-6 z-40 items-center gap-1 p-1 rounded-full backdrop-blur-2xl bg-slate-900/60 border border-white/10 shadow-2xl">
+      <motion.div 
+        initial={{ y: 100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ type: "spring", damping: 20, stiffness: 200, delay: 0.3 }}
+        className="theme-ui hidden sm:flex absolute bottom-8 right-6 z-40 items-center gap-1 p-1 rounded-full backdrop-blur-2xl bg-slate-900/60 border border-white/10 shadow-2xl"
+      >
         <button
           onClick={() => setActiveTab(activeTab === "people" ? null : "people")}
           className={`flex items-center gap-2 px-3 py-1.5 rounded-full transition-all text-sm font-medium ${
@@ -154,7 +170,7 @@ const RoomHeader = memo(function RoomHeader({
         >
           <FiMessageCircle size={15} />
         </button>
-      </div>
+      </motion.div>
     </>
   );
 });

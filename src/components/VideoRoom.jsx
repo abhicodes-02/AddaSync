@@ -6,6 +6,7 @@ import useMediaControls from "../hooks/useMediaControls";
 import useChat from "../hooks/useChat";
 import usePictureInPicture from "../hooks/usePictureInPicture";
 import useReactions from "../hooks/useReactions";
+import useSoundEffects from "../hooks/useSoundEffects";
 
 import RoomHeader from "./room/RoomHeader";
 import VideoGrid from "./room/VideoGrid";
@@ -16,37 +17,12 @@ import JoinPrompt from "./room/JoinPrompt";
 import ErrorScreen from "./room/ErrorScreen";
 import KnockingScreen from "./room/KnockingScreen";
 
-const playChime = () => {
-  try {
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContext) return;
-    const ctx = new AudioContext();
-    const playNote = (freq, startTime, duration) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.type = "triangle";
-      osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0, startTime);
-      gain.gain.linearRampToValueAtTime(1.5, startTime + 0.05);
-      gain.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
-      osc.start(startTime);
-      osc.stop(startTime + duration);
-    };
-    // Classic Doorbell Ding-Dong (E5 -> C5)
-    playNote(659.25, ctx.currentTime, 0.5);
-    playNote(523.25, ctx.currentTime + 0.4, 0.8);
-  } catch (e) {
-    console.warn("Audio chime failed", e);
-  }
-};
-
 export default function VideoRoom() {
   const { roomId: rawRoomId } = useParams();
   const roomId = rawRoomId ? rawRoomId.toUpperCase() : "";
   const navigate = useNavigate();
   const location = useLocation();
+  const playSound = useSoundEffects();
 
   const [localName, setLocalName] = useState(() => {
     try {
@@ -80,6 +56,7 @@ export default function VideoRoom() {
     remoteStreams,
     participantNames,
     participantStates,
+    networkQuality,
     connectionState,
     error,
     peersRef,
@@ -105,7 +82,7 @@ export default function VideoRoom() {
     startExternalStream,
   } = useMediaControls(localStreamRef, peersRef, setLocalStream);
 
-  const { messages, msg, setMsg, sendMessage, sendFile, messagesStartRef } = useChat(
+  const { messages, msg, setMsg, sendMessage, sendFile, messagesStartRef, typingUsers, setTyping } = useChat(
     roomId,
     localName
   );
@@ -115,6 +92,7 @@ export default function VideoRoom() {
 
   // 2. CALLBACKS
   const handleJoin = useCallback(() => {
+    playSound("click");
     const trimmed = nameInput.trim();
     if (trimmed) {
       try {
@@ -128,7 +106,7 @@ export default function VideoRoom() {
         start(trimmed).then(() => setIsReady(true)).catch(() => setIsReady(true));
       }
     }
-  }, [nameInput, start]);
+  }, [nameInput, start, playSound]);
 
   const [mediaFileUrl, setMediaFileUrl] = useState(null);
 
@@ -147,20 +125,45 @@ export default function VideoRoom() {
   }, [mediaFileUrl, stopSharing]);
 
   const leaveRoom = useCallback(() => {
+    playSound("leave");
     if (mediaFileUrl) URL.revokeObjectURL(mediaFileUrl);
     cleanup(); // Fire and forget
     navigate("/", { replace: true });
-  }, [cleanup, navigate, mediaFileUrl]);
+  }, [cleanup, navigate, mediaFileUrl, playSound]);
 
 
   // 3. EFFECTS
   const prevKnockersRef = useRef(0);
   useEffect(() => {
     if (isHost && pendingKnockers.length > prevKnockersRef.current) {
-      playChime();
+      playSound("join"); // Ding for knocking
     }
     prevKnockersRef.current = pendingKnockers.length;
-  }, [isHost, pendingKnockers.length]);
+  }, [isHost, pendingKnockers.length, playSound]);
+
+  // Messages sound
+  const prevMessagesRef = useRef(0);
+  useEffect(() => {
+    if (messages.length > prevMessagesRef.current) {
+      // Don't play if it's our own message
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage?.sender !== localName) {
+        playSound("pop");
+      }
+    }
+    prevMessagesRef.current = messages.length;
+  }, [messages, localName, playSound]);
+
+  // Participants join/leave sound
+  const prevParticipantsRef = useRef(0);
+  useEffect(() => {
+    if (isReady && remoteStreams.size > prevParticipantsRef.current) {
+      playSound("join");
+    } else if (isReady && remoteStreams.size < prevParticipantsRef.current) {
+      playSound("leave");
+    }
+    prevParticipantsRef.current = remoteStreams.size;
+  }, [remoteStreams.size, isReady, playSound]);
 
   useEffect(() => {
     // Check if device is iOS
@@ -178,9 +181,11 @@ export default function VideoRoom() {
       if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
       switch (e.key.toLowerCase()) {
         case "m":
+          playSound("click");
           toggleMute();
           break;
         case "v":
+          playSound("click");
           toggleCamera();
           break;
         case "escape":
@@ -192,7 +197,7 @@ export default function VideoRoom() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [toggleMute, toggleCamera, leaveRoom]);
+  }, [toggleMute, toggleCamera, leaveRoom, playSound]);
 
   useEffect(() => {
     const handleBeforeUnload = () => {
@@ -373,6 +378,8 @@ export default function VideoRoom() {
         isHost={isHost}
         roomState={roomState}
         adminActions={adminActions}
+        typingUsers={typingUsers}
+        setTyping={setTyping}
       />
 
       <div className="flex-1 relative flex flex-col min-w-0 transition-all duration-300">
@@ -381,6 +388,7 @@ export default function VideoRoom() {
           remoteStreams={remoteStreams}
           participantNames={participantNames}
           participantStates={participantStates}
+          networkQuality={networkQuality}
           localName={localName}
           localIsMuted={isMuted}
           localIsCameraOff={isCameraOff}

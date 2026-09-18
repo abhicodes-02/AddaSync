@@ -1,5 +1,7 @@
 import { memo, useState, useRef } from "react";
 import { FiX, FiSend, FiMessageCircle, FiUsers, FiPaperclip, FiDownload, FiFile } from "react-icons/fi";
+import { motion, AnimatePresence } from "framer-motion";
+import Draggable from "react-draggable";
 
 const SidePanel = memo(function SidePanel({
   activeTab,
@@ -16,8 +18,6 @@ const SidePanel = memo(function SidePanel({
   roomState,
   adminActions
 }) {
-  if (!activeTab) return null;
-
   const formatTime = (timestamp) => {
     return new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
@@ -28,6 +28,7 @@ const SidePanel = memo(function SidePanel({
   ];
 
   const fileInputRef = useRef(null);
+  const dragNodeRef = useRef(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -57,28 +58,41 @@ const SidePanel = memo(function SidePanel({
   };
 
   return (
-    <div className="
-        theme-ui absolute lg:relative right-0 top-0
-        h-full w-full sm:w-[380px]
-        backdrop-blur-3xl bg-slate-900/80
-        border-l border-white/5 shadow-2xl
-        flex flex-col z-50
-        animate-[slideIn_0.2s_ease-out]
-      "
-    >
-      {/* Header & Tabs */}
-      <div className="shrink-0 flex flex-col border-b border-white/5 bg-white/[0.01]">
-        <div className="h-16 px-5 flex items-center justify-between">
-          <h3 className="font-semibold text-white tracking-wide">
-            {activeTab === "chat" ? "Meeting Chat" : "Participants"}
-          </h3>
-          <button
-            onClick={() => setActiveTab(null)}
-            className="h-8 w-8 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors text-slate-400 hover:text-white"
+    <AnimatePresence>
+      {activeTab && (
+        <Draggable
+          nodeRef={dragNodeRef}
+          handle=".drag-handle"
+          bounds="parent"
+        >
+          <motion.div
+            ref={dragNodeRef}
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            className="
+              theme-ui absolute right-4 sm:right-8 top-24
+              h-[calc(100vh-140px)] w-full sm:w-[380px]
+              backdrop-blur-3xl bg-slate-900/90
+              border border-white/10 shadow-[0_20px_60px_rgba(0,0,0,0.6)]
+              flex flex-col z-50 rounded-3xl overflow-hidden
+            "
           >
-            <FiX size={16} />
-          </button>
-        </div>
+            {/* Header & Tabs */}
+            <div className="shrink-0 flex flex-col border-b border-white/5 bg-white/[0.02]">
+              <div className="drag-handle h-14 px-5 flex items-center justify-between cursor-move active:cursor-grabbing">
+                <div className="w-10 h-1.5 rounded-full bg-white/20 mx-auto absolute left-1/2 -translate-x-1/2" />
+                <h3 className="font-semibold text-white tracking-wide text-sm">
+                  {activeTab === "chat" ? "Meeting Chat" : "Participants"}
+                </h3>
+                <button
+                  onClick={() => setActiveTab(null)}
+                  className="h-8 w-8 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors text-slate-400 hover:text-white"
+                >
+                  <FiX size={16} />
+                </button>
+              </div>
         <div className="flex px-4 gap-4">
           <button
             onClick={() => setActiveTab("chat")}
@@ -140,7 +154,10 @@ const SidePanel = memo(function SidePanel({
                   id="chatMessage"
                   name="chatMessage"
                   value={msg}
-                  onChange={(e) => setMsg(e.target.value)}
+                  onChange={(e) => {
+                    setMsg(e.target.value);
+                    if (setTyping) setTyping();
+                  }}
                   onKeyDown={(e) => e.key === "Enter" && sendMessage()}
                   placeholder="Type or drop a file..."
                   className="
@@ -247,6 +264,15 @@ const SidePanel = memo(function SidePanel({
                   );
                 })
               )}
+              {typingUsers && typingUsers.length > 0 && (
+                <div className="flex flex-col items-start mt-4">
+                  <div className="bg-slate-800/80 border border-white/5 rounded-2xl rounded-tl-sm px-4 py-3 flex items-center gap-1.5 shadow-sm">
+                    <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-[bounce_1s_infinite]" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-[bounce_1s_infinite_200ms]" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-[bounce_1s_infinite_400ms]" />
+                  </div>
+                </div>
+              )}
             </div>
           </>
         ) : activeTab === "people" ? (
@@ -312,8 +338,11 @@ const SidePanel = memo(function SidePanel({
             </div>
           </div>
         ) : null}
-      </div>
-    </div>
+        </div>
+      </motion.div>
+        </Draggable>
+      )}
+    </AnimatePresence>
   );
 });
 

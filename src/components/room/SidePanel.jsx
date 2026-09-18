@@ -16,7 +16,9 @@ const SidePanel = memo(function SidePanel({
   participantNames,
   isHost,
   roomState,
-  adminActions
+  adminActions,
+  typingUsers = [],
+  setTyping
 }) {
   const formatTime = (timestamp) => {
     return new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });

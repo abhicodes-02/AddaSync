@@ -306,23 +306,7 @@ export default function usePictureInPicture(localVideoRef, remoteStreams, localS
     await startCanvasPiP();
   }, [startCanvasPiP, startDocPiP, stopPiP, pipWindow]);
 
-  // Handle automatic PIP on tab switch (Video PiP is usually more reliable for automatic trigger, but Doc PiP is user triggered)
-  useEffect(() => {
-    const handleVisibility = async () => {
-      if (
-        document.hidden &&
-        !pipWindow &&
-        !document.pictureInPictureElement
-      ) {
-        // Document PiP API must be user-gesture initiated. Automatic tab switch PiP requires standard video PiP.
-        if (document.pictureInPictureEnabled) {
-          await startCanvasPiP();
-        }
-      }
-    };
-    document.addEventListener("visibilitychange", handleVisibility);
-    return () => document.removeEventListener("visibilitychange", handleVisibility);
-  }, [startCanvasPiP, pipWindow]);
+
 
   useEffect(() => {
     return () => {

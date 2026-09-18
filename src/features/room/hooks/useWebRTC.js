@@ -290,25 +290,11 @@ export default function useWebRTC(roomId, userName) {
           console.warn("Failed to delete chat messages:", e);
         }
 
-        // 2. Delete Uploaded Files in Storage
-        try {
-          const folderRef = storageRef(storage, `chat_files/${roomId}`);
-          const fileList = await listAll(folderRef);
-          const deleteFilePromises = fileList.items.map(fileRef => deleteObject(fileRef));
-          await Promise.all(deleteFilePromises);
-        } catch (e) {
-          console.warn("Failed to delete storage files:", e);
-        }
-        // 3. Delete Main Room Document
-        try {
-          await deleteDoc(doc(db, "calls", roomId));
-        } catch (e) {
-          console.warn("Failed to delete room document:", e);
-        }
-      }
-    } catch (err) {
-      console.warn("Participant cleanup error:", err);
-    }
+          // Delete Filebin (E2EE files)
+          try {
+            const binName = "addasync_" + roomId.toLowerCase().replace(/[^a-z0-9]/g, "");
+            await fetch(`https://filebin.net/${binName}`, { method: "DELETE" });
+          } catch(e) {}
   }, [roomId]);
 
   const startWebRTC = useCallback(async (uid, activeName) => {

@@ -94,7 +94,8 @@ export default function useChat(roomId, userName) {
         if (onProgress) onProgress(10); // initial progress
         const { encryptedBlob, base64Key, base64Iv } = await encryptFile(file);
         
-        const fileId = Date.now() + "_" + Math.random().toString(36).substring(7) + "_" + encodeURIComponent(file.name);
+        // Append .txt so Cloudinary does not block PDF/ZIP delivery by default
+        const fileId = Date.now() + "_" + Math.random().toString(36).substring(7) + "_" + encodeURIComponent(file.name) + ".txt";
         const uploadUrl = "https://api.cloudinary.com/v1_1/rchak3gv/raw/upload";
 
         const formData = new FormData();

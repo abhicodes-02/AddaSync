@@ -3,17 +3,31 @@
 This document outlines the UI component hierarchy, layout states, and state management hooks driving the AddaSync interface.
 
 ## 1. Component Hierarchy
-The UI is modularized into feature-specific components:
+The UI is modularized into a feature-driven domain architecture under `src/features` and `src/shared`:
 
 ```text
-App
- ├── JoinRoom (Landing Page & Onboarding)
- └── VideoRoom (Main Conference View)
-      ├── RoomHeader (Room code, copy link, email invites)
-      ├── SidePanel (Chat & Participant List tabbed interface)
-      ├── ControlDock (Bottom media controls: Mic, Cam, Share, Hangup)
-      └── VideoGrid (Dynamic video layout engine)
-           └── RemoteVideo (Individual participant video tile)
+src/
+ ├─ shared/                (Reusables, utils, global config)
+ │   ├─ components/ui/     (Toast, LoadingScreen)
+ │   ├─ hooks/             (useAudioVolume, useSoundEffects)
+ │   ├─ lib/               (firebase config)
+ │   └─ utils/             (crypto.js - E2EE logic)
+ └─ features/
+     ├─ home/
+     │   └─ Home.jsx       (Landing Page & Onboarding)
+     └─ room/
+         ├─ Room.jsx       (Main Conference View)
+         ├─ components/
+         │   ├─ RoomHeader.jsx
+         │   ├─ SidePanel.jsx
+         │   ├─ FileAttachment.jsx (E2EE decryption UI)
+         │   ├─ ControlDock.jsx
+         │   └─ VideoGrid.jsx
+         └─ hooks/         (Domain-specific business logic)
+             ├─ useWebRTC.js
+             ├─ useChat.js
+             ├─ useMediaControls.js
+             └─ usePictureInPicture.js
 ```
 
 ## 2. Dynamic Layout Engine (`VideoGrid.jsx`)

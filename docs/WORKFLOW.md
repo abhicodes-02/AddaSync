@@ -51,5 +51,24 @@ Unlike traditional client-server video apps (which use an SFU/SFU), AddaSync use
 ## 5. Lifecycle and Hardware Cleanup
 Properly releasing camera and microphone hardware is critical. AddaSync utilizes strict unmount paradigms:
 1. **Explicit Leave**: When the user clicks the "Leave" button, `localStream.getTracks().forEach(t => t.stop())` is explicitly called. The router replaces the current history stack (`navigate("/", { replace: true })`) to prevent back-button auto-rejoin loops.
-2. **Tab/Window Close**: A `beforeunload` event listener directly intercepts abrupt window closures to forcefully kill active media tracks, ensuring hardware lights (like camera LEDs) immediately turn off and release the device for other applications.
+## 6. E2EE File Transfer Workflow (Cloudinary + WebCrypto API)
+To ensure maximum privacy for startup users, file sharing does not rely on traditional server storage or Firebase Storage.
+
+1. **Client-Side Encryption**:
+   - The user selects a file (`useChat.js`).
+   - `crypto.js` generates a random AES-256-GCM key and IV.
+   - The file is encrypted directly in the browser's memory using `window.crypto.subtle.encrypt()`.
+2. **Cloudinary Hosting**:
+   - The encrypted ciphertext (which looks like random noise) is uploaded to a free Cloudinary bucket using an unsigned preset.
+   - To bypass Cloudinary's default security block on raw/pdf files, the file is temporarily spoofed with a `.txt` extension during upload.
+3. **Key Distribution**:
+   - The AES decryption key and IV are embedded into the Firestore chat message document.
+   - Only participants actively in the room who can read the chat collection receive the keys.
+4. **Decryption on Demand**:
+   - When a peer clicks the file attachment (`FileAttachment.jsx`), the encrypted `.txt` blob is fetched from Cloudinary.
+   - The browser decrypts it locally using the Firestore key.
+   - A `Blob URL` is generated with the original MIME type and the file is downloaded to the user's disk securely.
+5. **Crypto-Shredding**:
+   - When the meeting ends, the Firestore chat collection is permanently deleted.
+   - Without the AES key in Firestore, the remaining ciphertext blob on Cloudinary becomes mathematically impossible to read, achieving perfect data destruction.
 

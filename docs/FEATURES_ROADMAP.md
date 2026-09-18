@@ -6,6 +6,24 @@
 The current Video Conferencing feature will become a robust built-in tool within a much larger ecosystem.
 
 ### Phase 1: Authentication & Identity
+
+## ✅ Recently Completed (Platform Foundations)
+
+1. **Feature-Based Modular Architecture**
+   - The entire codebase was refactored from a flat structure into a domain-driven, feature-based architecture (`src/features/home`, `src/features/room`, `src/shared`). 
+   - This ensures the project is scalable for adding Dashboards, Auth, and Group Chats without massive technical debt.
+
+2. **Military-Grade E2EE File Sharing (Cloudinary + WebCrypto API)**
+   - Complete End-to-End Encryption implementation for file sharing.
+   - Files are locally encrypted via AES-256-GCM before ever leaving the browser.
+   - Ciphertexts are uploaded seamlessly to Cloudinary (bypassing restriction mechanisms using .txt spoofing).
+   - Only room participants receive the decryption key (transferred via Firestore), rendering files 100% inaccessible to Cloudinary, AWS, or any third party.
+   - Files are automatically crypto-shredded when the chat is deleted (destroying the decryption key).
+
+3. **Smart Cleanup Mechanism**
+   - Complete teardown of WebRTC connections, Firestore chat messages, signaling data, and persistent files when the last person leaves the room.
+
+### Phase 1: Authentication & Identity
 1. **Login & Signup System**
    - Implement Firebase/Supabase Auth.
    - Support for Google OAuth and Email/Password.

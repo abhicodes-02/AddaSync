@@ -69,10 +69,10 @@ const SidePanel = memo(function SidePanel({
         >
           <motion.div
             ref={dragNodeRef}
-            initial={{ opacity: 0, scale: 0.9, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            initial={{ opacity: 0, x: 40, scale: 0.95, y: 10 }}
+            animate={{ opacity: 1, x: 0, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 10, transition: { duration: 0.2 } }}
+            transition={{ type: "spring", damping: 24, stiffness: 350, mass: 0.9 }}
             className="
               theme-ui absolute right-4 sm:right-8 top-24
               h-[calc(100vh-140px)] w-full sm:w-[380px]
@@ -86,7 +86,7 @@ const SidePanel = memo(function SidePanel({
               <div className="drag-handle h-14 px-5 flex items-center justify-between cursor-move active:cursor-grabbing">
                 <div className="w-10 h-1.5 rounded-full bg-white/20 mx-auto absolute left-1/2 -translate-x-1/2" />
                 <h3 className="font-semibold text-white tracking-wide text-sm">
-                  {activeTab === "chat" ? "Meeting Chat" : "Participants"}
+                  {activeTab === "chat" ? "Meeting Chat" : activeTab === "people" ? "Participants" : "Director Tools"}
                 </h3>
                 <button
                   onClick={() => setActiveTab(null)}
@@ -95,40 +95,57 @@ const SidePanel = memo(function SidePanel({
                   <FiX size={16} />
                 </button>
               </div>
-        <div className="flex px-4 gap-4">
+        <div className="flex px-4 gap-4 relative">
           <button
             onClick={() => setActiveTab("chat")}
-            className={`pb-3 text-sm font-medium transition-colors border-b-2 ${
-              activeTab === "chat" ? "border-cyan-500 text-cyan-400" : "border-transparent text-slate-400 hover:text-slate-200"
+            className={`pb-3 text-sm font-medium transition-colors relative ${
+              activeTab === "chat" ? "text-cyan-400" : "text-slate-400 hover:text-slate-200"
             }`}
           >
             Chat
+            {activeTab === "chat" && (
+              <motion.div layoutId="activeTabIndicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-cyan-500 rounded-t-full" />
+            )}
           </button>
           <button
             onClick={() => setActiveTab("people")}
-            className={`pb-3 text-sm font-medium transition-colors border-b-2 flex items-center gap-1.5 ${
-              activeTab === "people" ? "border-cyan-500 text-cyan-400" : "border-transparent text-slate-400 hover:text-slate-200"
+            className={`pb-3 text-sm font-medium transition-colors flex items-center gap-1.5 relative ${
+              activeTab === "people" ? "text-cyan-400" : "text-slate-400 hover:text-slate-200"
             }`}
           >
             People <span className="bg-white/10 text-xs px-1.5 py-0.5 rounded-full">{allParticipants.length}</span>
+            {activeTab === "people" && (
+              <motion.div layoutId="activeTabIndicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-cyan-500 rounded-t-full" />
+            )}
           </button>
           
           {isHost && (
             <button
               onClick={() => setActiveTab("director")}
-              className={`pb-3 text-sm font-medium transition-colors border-b-2 flex items-center gap-1.5 ${
-                activeTab === "director" ? "border-amber-500 text-amber-400" : "border-transparent text-slate-400 hover:text-slate-200"
+              className={`pb-3 text-sm font-medium transition-colors flex items-center gap-1.5 relative ${
+                activeTab === "director" ? "text-amber-400" : "text-slate-400 hover:text-slate-200"
               }`}
             >
               Director 👑
+              {activeTab === "director" && (
+                <motion.div layoutId="activeTabIndicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-500 rounded-t-full" />
+              )}
             </button>
           )}
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 flex flex-col">
+      <div className="flex-1 min-h-0 flex flex-col relative overflow-hidden">
+        <AnimatePresence mode="wait">
         {activeTab === "chat" ? (
-          <>
+          <motion.div 
+            key="chat"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.2 }}
+            className="flex-1 flex flex-col min-h-0"
+          >
             <div 
               className="flex-1 overflow-y-auto scrollbar-thin p-4 space-y-4 flex flex-col relative"
               onDragOver={handleDragOver}
@@ -276,9 +293,16 @@ const SidePanel = memo(function SidePanel({
                 </button>
               </div>
             </div>
-          </>
+          </motion.div>
         ) : activeTab === "people" ? (
-          <div className="flex-1 overflow-y-auto scrollbar-thin p-4 space-y-2">
+          <motion.div 
+            key="people"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            transition={{ duration: 0.2 }}
+            className="flex-1 overflow-y-auto scrollbar-thin p-4 space-y-2"
+          >
             {allParticipants.map(p => (
               <div key={p.id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-colors">
                 <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-500 flex items-center justify-center text-white font-bold shadow-lg shadow-cyan-500/20">
@@ -297,9 +321,16 @@ const SidePanel = memo(function SidePanel({
                 )}
               </div>
             ))}
-          </div>
+          </motion.div>
         ) : activeTab === "director" ? (
-          <div className="flex-1 overflow-y-auto scrollbar-thin p-4 space-y-6">
+          <motion.div 
+            key="director"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            transition={{ duration: 0.2 }}
+            className="flex-1 overflow-y-auto scrollbar-thin p-4 space-y-6"
+          >
             <div>
               <h4 className="text-amber-500 font-medium text-sm mb-3">Room Theme</h4>
               <div className="grid grid-cols-2 gap-2">
@@ -338,8 +369,9 @@ const SidePanel = memo(function SidePanel({
               </button>
               <p className="text-xs text-slate-400 mt-2 text-center">Focus Mode silences everyone except the Spotlight user.</p>
             </div>
-          </div>
+          </motion.div>
         ) : null}
+        </AnimatePresence>
         </div>
       </motion.div>
         </Draggable>

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AddaSync Workflow Architecture</title>
+    <style>
+        body {
+            background-color: #0f172a; /* tailwind slate-900 */
+            color: #f8fafc; /* tailwind slate-50 */
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 40px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 {
+            color: #22d3ee; /* tailwind cyan-400 */
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        p.subtitle {
+            color: #94a3b8; /* tailwind slate-400 */
+            margin-bottom: 40px;
+            text-align: center;
+            max-width: 600px;
+        }
+        .mermaid {
+            background-color: #1e293b; /* tailwind slate-800 */
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            width: 100%;
+            max-width: 1000px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>AddaSync Complete Workflow</h1>
+    <p class="subtitle">An overview of Identity, WebRTC Mesh Networking, E2EE File Sharing, and Room Teardown.</p>
+
+    <div class="mermaid">
+        %%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#0891b2', 'primaryTextColor': '#fff', 'primaryBorderColor': '#22d3ee', 'lineColor': '#94a3b8', 'secondaryColor': '#1e293b', 'tertiaryColor': '#334155'}}}%%
+        graph TD
+            subgraph 1. Entry & Identity
+                A[User Opens App] --> B{Has Local UID?}
+                B -->|Yes| C[Use Existing UID from LocalStorage]
+                B -->|No| D[Generate New UUID]
+                C --> E[Enter Room ID & Join]
+                D --> E
+            end
+
+            subgraph 2. Host Election & Waiting Room
+                E --> F{Does Room Exist in Firestore?}
+                F -->|No| G[Become Host & Create Room Doc]
+                F -->|Yes| H[Join as Guest & Send Knock Request]
+                H --> I[Host Receives Notification]
+                I --> J[Host Admits Guest]
+            end
+
+            subgraph 3. Full Mesh WebRTC P2P
+                G --> K[Start RTCPeerConnection]
+                J --> K
+                K --> L[Generate & Exchange Offers/Answers via Firestore]
+                L --> M[Exchange ICE Candidates via Firestore]
+                M --> N((Direct P2P Video & Audio Connected!))
+            end
+
+            subgraph 4. E2EE Secure File Sharing
+                N -.-> O[User Selects File to Send]
+                O --> P[Browser Generates AES-256 Key & IV]
+                P --> Q[Encrypt File Bytes in Browser]
+                Q --> R[Upload Ciphertext (Gibberish) to Cloudinary]
+                P --> S[Send Secret Key to Firestore Chat]
+                R --> T[Recipient Clicks Download]
+                S --> T
+                T --> U[Browser Decrypts & Restores Original File]
+            end
+
+            subgraph 5. Smart Teardown
+                N -.-> V[User Clicks Leave / Closes Tab]
+                V --> W{Is Last Person in Room?}
+                W -->|Yes| X[Delete Main Room & Signaling Data]
+                X --> Y[Delete Firestore Chat History]
+                Y --> Z((Keys Destroyed = Cloudinary Files Crypto-Shredded!))
+            end
+            
+            style N fill:#10b981,stroke:#059669,stroke-width:2px,color:#fff
+            style Z fill:#ef4444,stroke:#b91c1c,stroke-width:2px,color:#fff
+    </div>
+
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({ startOnLoad: true, theme: 'dark' });
+    </script>
+</body>
+</html>

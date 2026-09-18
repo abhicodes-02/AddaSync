@@ -10,6 +10,7 @@ import {
   setDoc,
 } from "firebase/firestore";
 
+import { encryptFile } from "../../../shared/utils/crypto";
 import { db } from "../../../shared/lib/firebase";
 
 export default function useChat(roomId, userName) {

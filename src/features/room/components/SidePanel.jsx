@@ -2,6 +2,7 @@ import { memo, useState, useRef } from "react";
 import { FiX, FiSend, FiMessageCircle, FiUsers, FiPaperclip, FiDownload, FiFile } from "react-icons/fi";
 import { motion, AnimatePresence } from "framer-motion";
 import Draggable from "react-draggable";
+import FileAttachment from "./FileAttachment";
 
 const SidePanel = memo(function SidePanel({
   activeTab,
@@ -186,34 +187,8 @@ const SidePanel = memo(function SidePanel({
                       )}
                       
                       {m.type === 'file' ? (
-                        <div className={`
-                          max-w-[85%] p-1 text-sm leading-relaxed
-                          ${isMe 
-                            ? "bg-cyan-600/20 border border-cyan-500/30 rounded-2xl rounded-tr-sm" 
-                            : "bg-slate-800/80 border border-white/5 rounded-2xl rounded-tl-sm"
-                          }
-                        `}>
-                           <div className="flex items-center gap-3 p-2">
-                             <div className="w-10 h-10 rounded-xl bg-black/30 flex items-center justify-center text-cyan-400 shrink-0">
-                               <FiFile size={20} />
-                             </div>
-                             <div className="min-w-0 flex-1 pr-2">
-                               <p className="text-white font-medium truncate text-sm" title={m.fileName}>{m.fileName}</p>
-                               <p className="text-slate-400 text-[10px] uppercase">{(m.fileSize / 1024 / 1024).toFixed(2)} MB</p>
-                             </div>
-                             <a 
-                               href={m.fileUrl} 
-                               target="_blank" 
-                               rel="noopener noreferrer"
-                               download={m.fileName}
-                               className="h-8 w-8 rounded-lg bg-black/40 hover:bg-black/60 flex items-center justify-center text-white transition-colors shrink-0"
-                               title="Download File"
-                             >
-                               <FiDownload size={14} />
-                             </a>
-                           </div>
-                        </div>
-                      ) : (
+                          <FileAttachment m={m} isMe={isMe} />
+                        ) : (
                         <div className={`
                           max-w-[85%] px-4 py-2.5 text-sm leading-relaxed break-words
                           ${isMe 

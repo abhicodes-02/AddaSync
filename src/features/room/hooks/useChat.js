@@ -56,7 +56,6 @@ export default function useChat(roomId, userName) {
       const added = snap.docChanges().filter(c => c.type === "added");
       added.forEach(change => {
         const data = change.doc.data();
-        // Only dispatch for messages that arrived after the listener started
         if (prevCountRef.current > 0) {
           window.dispatchEvent(new CustomEvent("chat-bubble", {
             detail: { sender: data.sender, text: data.text, id: change.doc.id }
@@ -87,56 +86,65 @@ export default function useChat(roomId, userName) {
   }, [msg, roomId, userName]);
 
   const sendFile = useCallback(async (file, onProgress) => {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       if (!file) return reject(new Error("No file selected"));
       
-      const formData = new FormData();
-      formData.append("file", file);
+      try {
+        // 1. Encrypt File E2EE
+        if (onProgress) onProgress(10); // initial progress
+        const { encryptedBlob, base64Key, base64Iv } = await encryptFile(file);
+        
+        const fileId = Date.now() + "_" + Math.random().toString(36).substring(7) + "_" + encodeURIComponent(file.name);
+        const uploadUrl = "https://api.cloudinary.com/v1_1/rchak3gv/raw/upload";
 
-      const xhr = new XMLHttpRequest();
-      
-      xhr.upload.onprogress = (event) => {
-        if (event.lengthComputable && onProgress) {
-          const progress = (event.loaded / event.total) * 100;
-          onProgress(progress);
-        }
-      };
-      
-      xhr.onload = async () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          try {
-            const response = JSON.parse(xhr.responseText);
-            if (response.status === "success") {
-              // response.data.url looks like: https://tmpfiles.org/123456/file.png
-              // We need to inject '/dl/' to get the direct download link
-              const directUrl = response.data.url.replace("tmpfiles.org/", "tmpfiles.org/dl/");
+        const formData = new FormData();
+        formData.append("file", encryptedBlob, fileId);
+        formData.append("upload_preset", "cghc6hcu");
+
+        // 2. Upload Encrypted File to Cloudinary
+        const xhr = new XMLHttpRequest();
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable && onProgress) {
+            const uploadProgress = (event.loaded / event.total) * 90;
+            onProgress(10 + uploadProgress);
+          }
+        };
+        
+        xhr.onload = async () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              const response = JSON.parse(xhr.responseText);
+              const fileUrl = response.secure_url;
               
               await sendMessage({
                 type: "file",
                 fileName: file.name,
+                fileType: file.type,
                 fileSize: file.size,
-                fileUrl: directUrl,
+                fileUrl: fileUrl,
+                encryption: {
+                  key: base64Key,
+                  iv: base64Iv
+                }
               });
-              resolve(directUrl);
-            } else {
-              reject(new Error("Upload failed"));
+              resolve(fileUrl);
+            } catch (err) {
+              reject(err);
             }
-          } catch (err) {
-            reject(new Error("Failed to parse response"));
+          } else {
+            reject(new Error("Upload failed with status: " + xhr.status));
           }
-        } else {
-          reject(new Error("Upload failed with status: " + xhr.status));
-        }
-      };
-      
-      xhr.onerror = () => reject(new Error("Network error during upload"));
-      
-      xhr.open("POST", "https://tmpfiles.org/api/v1/upload", true);
-      xhr.send(formData);
+        };
+        
+        xhr.onerror = () => reject(new Error("Network error during upload"));
+        
+        xhr.open("POST", uploadUrl, true);
+        xhr.send(formData);
+      } catch (err) {
+        reject(err);
+      }
     });
   }, [sendMessage]);
 
   return { messages, msg, setMsg, sendMessage, sendFile, messagesStartRef, typingUsers, setTyping };
 }
-
-

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, memo } from "react";
 import { FiMicOff } from "react-icons/fi";
-import { createPiPStream } from "../../utils/streamCompositor";
-import useAudioVolume from "../../hooks/useAudioVolume";
+import { createPiPStream } from "../utils/streamCompositor";
+import useAudioVolume from "../../../shared/hooks/useAudioVolume";
 import { motion, AnimatePresence } from "framer-motion";
 
 function RemoteVideo({
@@ -864,3 +864,4 @@ const VideoGrid = memo(function VideoGrid({
 });
 
 export default VideoGrid;
+

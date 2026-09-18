@@ -10,7 +10,7 @@ import {
   setDoc,
 } from "firebase/firestore";
 import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
-import { db, storage } from "../firebase/firebase";
+import { db, storage } from "../../../shared/lib/firebase";
 
 export default function useChat(roomId, userName) {
   const [messages, setMessages] = useState([]);
@@ -123,3 +123,4 @@ export default function useChat(roomId, userName) {
 
   return { messages, msg, setMsg, sendMessage, sendFile, messagesStartRef, typingUsers, setTyping };
 }
+

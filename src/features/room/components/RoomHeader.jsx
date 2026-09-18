@@ -1,6 +1,6 @@
 import { FiCopy, FiMessageCircle, FiUsers, FiMail } from "react-icons/fi";
 import { memo } from "react";
-import { useToast } from "../ui/Toast";
+import { useToast } from "../../../shared/components/Toast";
 import { motion } from "framer-motion";
 
 const STATE_LABELS = {

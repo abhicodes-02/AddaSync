@@ -1,10 +1,10 @@
 import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { ToastProvider } from "./components/ui/Toast.jsx";
-import LoadingScreen from "./components/ui/LoadingScreen.jsx";
+import { ToastProvider } from "./shared/components/Toast.jsx";
+import LoadingScreen from "./shared/components/LoadingScreen.jsx";
 
-const JoinRoom = lazy(() => import("./components/JoinRoom.jsx"));
-const VideoRoom = lazy(() => import("./components/VideoRoom.jsx"));
+const JoinRoom = lazy(() => import("./features/home/Home.jsx"));
+const VideoRoom = lazy(() => import("./features/room/Room.jsx"));
 
 function App() {
   return (
@@ -22,4 +22,5 @@ function App() {
 }
 
 export default App;
+
 

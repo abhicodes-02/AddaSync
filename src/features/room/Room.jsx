@@ -1,21 +1,21 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 
-import useWebRTC from "../hooks/useWebRTC";
-import useMediaControls from "../hooks/useMediaControls";
-import useChat from "../hooks/useChat";
-import usePictureInPicture from "../hooks/usePictureInPicture";
-import useReactions from "../hooks/useReactions";
-import useSoundEffects from "../hooks/useSoundEffects";
+import useWebRTC from "./hooks/useWebRTC";
+import useMediaControls from "./hooks/useMediaControls";
+import useChat from "./hooks/useChat";
+import usePictureInPicture from "./hooks/usePictureInPicture";
+import useReactions from "./hooks/useReactions";
+import useSoundEffects from "../../shared/hooks/useSoundEffects";
 
-import RoomHeader from "./room/RoomHeader";
-import VideoGrid from "./room/VideoGrid";
-import SidePanel from "./room/SidePanel";
-import ControlDock from "./room/ControlDock";
-import LoadingScreen from "./ui/LoadingScreen";
-import JoinPrompt from "./room/JoinPrompt";
-import ErrorScreen from "./room/ErrorScreen";
-import KnockingScreen from "./room/KnockingScreen";
+import RoomHeader from "./components/RoomHeader";
+import VideoGrid from "./components/VideoGrid";
+import SidePanel from "./components/SidePanel";
+import ControlDock from "./components/ControlDock";
+import LoadingScreen from "../../shared/components/LoadingScreen";
+import JoinPrompt from "./components/JoinPrompt";
+import ErrorScreen from "./components/ErrorScreen";
+import KnockingScreen from "./components/KnockingScreen";
 
 export default function VideoRoom() {
   const { roomId: rawRoomId } = useParams();

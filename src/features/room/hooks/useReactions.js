@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { db } from "../firebase/firebase";
+import { db } from "../../../shared/lib/firebase";
 import { collection, addDoc, onSnapshot, query, orderBy, limit, serverTimestamp } from "firebase/firestore";
 
 export default function useReactions(roomId, userName) {
@@ -62,4 +62,5 @@ export default function useReactions(roomId, userName) {
 
   return { reactions, sendReaction };
 }
+
 

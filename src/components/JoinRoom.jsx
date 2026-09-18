@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiArrowRight, FiVideo } from "react-icons/fi";
+import { motion } from "framer-motion";
 
 export default function JoinRoom() {
   const [roomId, setRoomId] = useState("");
@@ -45,7 +46,12 @@ export default function JoinRoom() {
       <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-cyan-600/20 rounded-full blur-[120px] pointer-events-none animate-pulse-slow" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-blue-600/20 rounded-full blur-[120px] pointer-events-none animate-pulse-slow" style={{ animationDelay: '2s' }} />
 
-      <div className="relative z-10 w-full max-w-md animate-[fadeIn_0.5s_ease-out]">
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ type: "spring", damping: 20, stiffness: 300 }}
+        className="relative z-10 w-full max-w-md"
+      >
         <div className="backdrop-blur-3xl bg-white/[0.02] border border-white/10 rounded-[2.5rem] shadow-2xl p-8 sm:p-10 transition-all hover:bg-white/[0.03] hover:border-white/20 hover:shadow-[0_0_80px_rgba(6,182,212,0.1)]">
           
           <div className="text-center mb-10">
@@ -139,7 +145,7 @@ export default function JoinRoom() {
           </div>
 
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

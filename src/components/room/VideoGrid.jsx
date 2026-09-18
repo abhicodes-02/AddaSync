@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, memo } from "react";
 import { FiMicOff } from "react-icons/fi";
 import { createPiPStream } from "../../utils/streamCompositor";
 import useAudioVolume from "../../hooks/useAudioVolume";
+import { motion, AnimatePresence } from "framer-motion";
 
 function RemoteVideo({
   stream,
@@ -646,34 +647,41 @@ const VideoGrid = memo(function VideoGrid({
           )}
 
           {/* Remote Camera Tiles */}
-          {streamsEntries.map(
-            ([uid, stream]) => {
-              if (uid === pinnedUid) {
-                return null;
+          <AnimatePresence>
+            {streamsEntries.map(
+              ([uid, stream]) => {
+                if (uid === pinnedUid) {
+                  return null;
+                }
+
+                const pState = participantStates?.get(uid) || {};
+                const isFocusMuted = roomState?.focusMode && uid !== roomState?.hostUid;
+
+                return (
+                  <motion.div
+                    key={uid}
+                    layout
+                    initial={{ opacity: 0, scale: 0.8, y: 20 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.8, width: 0, marginLeft: -12 }}
+                    transition={{ type: "spring", damping: 25, stiffness: 350 }}
+                    className={`w-32 sm:w-40 h-20 sm:h-24 shrink-0 transition-[filter,opacity] duration-500 ${isFocusMuted ? 'opacity-40 grayscale-[50%]' : 'opacity-100'}`}
+                  >
+                    <RemoteVideo
+                      stream={stream}
+                      isConnected={isConnected}
+                      name={participantNames?.get(uid) || "Participant"}
+                      isThumbnail={true}
+                      isMuted={isFocusMuted || pState.isMuted}
+                      isCameraOff={pState.isCameraOff}
+                      forceMuted={isFocusMuted}
+                      quality={networkQuality?.get(uid) || 'green'}
+                    />
+                  </motion.div>
+                );
               }
-
-              const pState = participantStates?.get(uid) || {};
-              const isFocusMuted = roomState?.focusMode && uid !== roomState?.hostUid;
-
-              return (
-                <div
-                  key={uid}
-                  className={`w-32 sm:w-40 h-20 sm:h-24 shrink-0 transition-opacity duration-500 ${isFocusMuted ? 'opacity-40 grayscale-[50%]' : 'opacity-100'}`}
-                >
-                  <RemoteVideo
-                    stream={stream}
-                    isConnected={isConnected}
-                    name={participantNames?.get(uid) || "Participant"}
-                    isThumbnail={true}
-                    isMuted={isFocusMuted || pState.isMuted}
-                    isCameraOff={pState.isCameraOff}
-                    forceMuted={isFocusMuted}
-                    quality={networkQuality?.get(uid) || 'green'}
-                  />
-                </div>
-              );
-            }
-          )}
+            )}
+          </AnimatePresence>
         </div>
       </div>
     );
@@ -741,18 +749,24 @@ const VideoGrid = memo(function VideoGrid({
             </p>
           </div>
         ) : (
-          streamsEntries.map(
-            ([uid, stream]) => {
-              const pState =
-                participantStates?.get(
-                  uid
-                ) || {};
+          <AnimatePresence>
+            {streamsEntries.map(
+              ([uid, stream]) => {
+                const pState =
+                  participantStates?.get(
+                    uid
+                  ) || {};
 
-              return (
-                <div
-                  key={uid}
-                  className="min-w-0 min-h-0"
-                >
+                return (
+                  <motion.div
+                    key={uid}
+                    layout
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                    className="min-w-0 min-h-0 relative"
+                  >
                   <RemoteVideo
                     stream={stream}
                     isConnected={
@@ -772,10 +786,11 @@ const VideoGrid = memo(function VideoGrid({
                     }
                     quality={networkQuality?.get(uid) || 'green'}
                   />
-                </div>
-              );
-            }
-          )
+                </motion.div>
+                );
+              }
+            )}
+          </AnimatePresence>
         )}
       </div>
 

@@ -15,15 +15,15 @@ import {
 function DockButton({ onClick, active, danger, accent, tooltip, children }) {
   return (
     <div className="relative group">
-      <button
+      <motion.button
         onClick={onClick}
+        whileHover={{ scale: 1.1, y: -4 }}
+        whileTap={{ scale: 0.9 }}
         className={`
           h-10 w-10 sm:h-12 sm:w-12
           rounded-2xl
           flex items-center justify-center
-          transition-all duration-300
-          hover:-translate-y-1 hover:shadow-xl
-          active:scale-95 active:translate-y-0
+          transition-colors duration-300
           ${danger
             ? "bg-red-500 hover:bg-red-400 text-white shadow-[0_4px_14px_0_rgba(239,68,68,0.39)]"
             : active
@@ -35,7 +35,7 @@ function DockButton({ onClick, active, danger, accent, tooltip, children }) {
         `}
       >
         {children}
-      </button>
+      </motion.button>
       {tooltip && (
         <div className="
           absolute -top-12 left-1/2 -translate-x-1/2

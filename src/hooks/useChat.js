@@ -86,10 +86,10 @@ export default function useChat(roomId, userName) {
   const sendFile = useCallback(async (file, onProgress) => {
     return new Promise((resolve, reject) => {
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("files[]", file);
 
       const xhr = new XMLHttpRequest();
-      xhr.open("POST", "https://tmpfiles.org/api/v1/upload", true);
+      xhr.open("POST", "https://uguu.se/upload.php", true);
 
       xhr.upload.onprogress = (event) => {
         if (event.lengthComputable) {
@@ -102,18 +102,19 @@ export default function useChat(roomId, userName) {
         if (xhr.status >= 200 && xhr.status < 300) {
           try {
             const response = JSON.parse(xhr.responseText);
-            // tmpfiles returns url like https://tmpfiles.org/123/file.ext
-            // to download directly, it needs to be https://tmpfiles.org/dl/123/file.ext
-            const rawUrl = response.data.url;
-            const downloadURL = rawUrl.replace("tmpfiles.org/", "tmpfiles.org/dl/");
-            
-            await sendMessage({
-              type: "file",
-              fileName: file.name,
-              fileSize: file.size,
-              fileUrl: downloadURL,
-            });
-            resolve(downloadURL);
+            if (response.success && response.files && response.files.length > 0) {
+              const downloadURL = response.files[0].url;
+              
+              await sendMessage({
+                type: "file",
+                fileName: file.name,
+                fileSize: file.size,
+                fileUrl: downloadURL,
+              });
+              resolve(downloadURL);
+            } else {
+              reject(new Error("Upload failed on server"));
+            }
           } catch (e) {
             reject(new Error("Failed to parse upload response"));
           }

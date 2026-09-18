@@ -48,3 +48,25 @@ The current Video Conferencing feature will become a robust built-in tool within
   - **Change Room Vibe:** Instantly change CSS themes and ambient music for everyone.
   - **Focus Mode:** Hard mute with a dramatic animation.
   - **Forced Leave:** Admin power to kick unruly participants. -->
+
+
+1. Audio Visualizer & Active Speaker Highlight 🎙️
+
+Jokhon keu kotha bolbe, tar video ba namer charpase ekta animated glow ba audio wave (waveform) toiri hobe jeta tar kothar volume er sathe sathe choto-boro hobe.
+Je kotha bolche tar border ta automatic glow korbe jate sohoje bojha jay ke kotha bolche.
+2. Premium Micro-Interactions & Sound Effects 🎵
+
+App ta ke "Jibonto" (alive) feel koranor jonnyo chotto chotto sound effect dewa jete pare. Jemon: Keu meeting e join korle ekta smooth "ding", mute/unmute korle chotto "click", ba notun message asle "pop" sound.
+Button e click korle haptic feedback ba ripple effect dewa jete pare.
+3. Fluid Animations (Framer Motion diye) 🌪️
+
+Ekhon CSS diye animation kora ache, kintu framer-motion package ta use korle Apple-er app gulor moto Spring Physics animation add kora jay. Jemon, chat box open hole ba participant list open hole ekdom makhon-er (butter) moto smooth transition hobe.
+4. Draggable Floating UI 🪟
+
+Control dock ba chat panel take fixed na rekhe, user chaile drag kore screen er jekono jaygay soriye rakhte parbe (PiP mode er moto).
+5. Network Quality Indicator 📶
+
+Prottek user er namer pashe ekta chotto signal bar thakbe (Green/Yellow/Red). Jar internet slow, tar pashe automatic lal signal dekhabe, jate user ra bujhte pare kar net problem korche.
+6. Typing Indicators 💬
+
+Chat e keu kichu likhle onnyora realtime e dekhte pabe "Alex is typing..." ekta chotto animated text hisebe.

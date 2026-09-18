@@ -129,61 +129,6 @@ const SidePanel = memo(function SidePanel({
       <div className="flex-1 min-h-0 flex flex-col">
         {activeTab === "chat" ? (
           <>
-            {/* Chat Input (Fixed at Top) */}
-            <div className="shrink-0 p-4 bg-white/[0.01] border-b border-white/5 relative">
-              {isUploading && (
-                <div className="absolute top-0 left-0 w-full h-1 bg-slate-800">
-                  <div className="h-full bg-cyan-500 transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
-                </div>
-              )}
-              <div className="flex gap-2 items-end bg-black/40 rounded-[1.25rem] border border-white/10 p-1.5 focus-within:border-cyan-500/50 focus-within:ring-1 focus-within:ring-cyan-500/50 transition-all">
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="h-9 w-9 shrink-0 flex items-center justify-center rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-                >
-                  <FiPaperclip size={16} />
-                </button>
-                <input 
-                  type="file" 
-                  ref={fileInputRef} 
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) handleUpload(f);
-                  }} 
-                  className="hidden" 
-                />
-                <input
-                  id="chatMessage"
-                  name="chatMessage"
-                  value={msg}
-                  onChange={(e) => {
-                    setMsg(e.target.value);
-                    if (setTyping) setTyping();
-                  }}
-                  onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-                  placeholder="Type or drop a file..."
-                  className="
-                    flex-1 bg-transparent px-1 py-2 outline-none
-                    text-sm text-white placeholder:text-slate-500
-                  "
-                  autoComplete="off"
-                />
-                <button
-                  onClick={() => sendMessage()}
-                  disabled={!msg.trim()}
-                  className="
-                    h-9 w-9 shrink-0 rounded-xl
-                    flex items-center justify-center
-                    bg-cyan-500 hover:bg-cyan-400 active:scale-95
-                    disabled:opacity-30 disabled:hover:bg-cyan-500
-                    transition-all text-white shadow-md shadow-cyan-500/20
-                  "
-                >
-                  <FiSend size={15} className="ml-0.5" />
-                </button>
-              </div>
-            </div>
-
             <div 
               className="flex-1 overflow-y-auto scrollbar-thin p-4 space-y-4 flex flex-col relative"
               onDragOver={handleDragOver}
@@ -275,6 +220,61 @@ const SidePanel = memo(function SidePanel({
                   </div>
                 </div>
               )}
+            </div>
+
+            {/* Chat Input (Fixed at Bottom) */}
+            <div className="shrink-0 p-4 bg-white/[0.01] border-t border-white/5 relative">
+              {isUploading && (
+                <div className="absolute top-0 left-0 w-full h-1 bg-slate-800">
+                  <div className="h-full bg-cyan-500 transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
+                </div>
+              )}
+              <div className="flex gap-2 items-end bg-black/40 rounded-[1.25rem] border border-white/10 p-1.5 focus-within:border-cyan-500/50 focus-within:ring-1 focus-within:ring-cyan-500/50 transition-all">
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="h-9 w-9 shrink-0 flex items-center justify-center rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                >
+                  <FiPaperclip size={16} />
+                </button>
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) handleUpload(f);
+                  }} 
+                  className="hidden" 
+                />
+                <input
+                  id="chatMessage"
+                  name="chatMessage"
+                  value={msg}
+                  onChange={(e) => {
+                    setMsg(e.target.value);
+                    if (setTyping) setTyping();
+                  }}
+                  onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+                  placeholder="Type or drop a file..."
+                  className="
+                    flex-1 bg-transparent px-1 py-2 outline-none
+                    text-sm text-white placeholder:text-slate-500
+                  "
+                  autoComplete="off"
+                />
+                <button
+                  onClick={() => sendMessage()}
+                  disabled={!msg.trim()}
+                  className="
+                    h-9 w-9 shrink-0 rounded-xl
+                    flex items-center justify-center
+                    bg-cyan-500 hover:bg-cyan-400 active:scale-95
+                    disabled:opacity-30 disabled:hover:bg-cyan-500
+                    transition-all text-white shadow-md shadow-cyan-500/20
+                  "
+                >
+                  <FiSend size={15} className="ml-0.5" />
+                </button>
+              </div>
             </div>
           </>
         ) : activeTab === "people" ? (

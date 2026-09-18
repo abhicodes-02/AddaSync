@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { db } from "../firebase/firebase";
+
 import {
   collection,
   addDoc,
@@ -9,6 +9,8 @@ import {
   doc,
   setDoc,
 } from "firebase/firestore";
+import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
+import { db, storage } from "../firebase/firebase";
 
 export default function useChat(roomId, userName) {
   const [messages, setMessages] = useState([]);
@@ -85,51 +87,39 @@ export default function useChat(roomId, userName) {
 
   const sendFile = useCallback(async (file, onProgress) => {
     return new Promise((resolve, reject) => {
-      const formData = new FormData();
-      formData.append("files[]", file);
+      if (!file) return reject(new Error("No file selected"));
+      
+      const fileId = `${Date.now()}_${Math.random().toString(36).substring(7)}_${file.name}`;
+      const fileRef = ref(storage, `chat_files/${roomId}/${fileId}`);
+      
+      const uploadTask = uploadBytesResumable(fileRef, file);
 
-      const xhr = new XMLHttpRequest();
-      xhr.open("POST", "https://uguu.se/upload.php", true);
-
-      xhr.upload.onprogress = (event) => {
-        if (event.lengthComputable) {
-          const progress = (event.loaded / event.total) * 100;
+      uploadTask.on(
+        "state_changed",
+        (snapshot) => {
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
           if (onProgress) onProgress(progress);
-        }
-      };
-
-      xhr.onload = async () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
+        },
+        (error) => {
+          reject(error);
+        },
+        async () => {
           try {
-            const response = JSON.parse(xhr.responseText);
-            if (response.success && response.files && response.files.length > 0) {
-              const downloadURL = response.files[0].url;
-              
-              await sendMessage({
-                type: "file",
-                fileName: file.name,
-                fileSize: file.size,
-                fileUrl: downloadURL,
-              });
-              resolve(downloadURL);
-            } else {
-              reject(new Error("Upload failed on server"));
-            }
-          } catch (e) {
-            reject(new Error("Failed to parse upload response"));
+            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+            await sendMessage({
+              type: "file",
+              fileName: file.name,
+              fileSize: file.size,
+              fileUrl: downloadURL,
+            });
+            resolve(downloadURL);
+          } catch (error) {
+            reject(error);
           }
-        } else {
-          reject(new Error("Upload failed with status " + xhr.status));
         }
-      };
-
-      xhr.onerror = () => {
-        reject(new Error("Network error during upload"));
-      };
-
-      xhr.send(formData);
+      );
     });
-  }, [sendMessage]);
+  }, [sendMessage, roomId]);
 
   return { messages, msg, setMsg, sendMessage, sendFile, messagesStartRef, typingUsers, setTyping };
 }
